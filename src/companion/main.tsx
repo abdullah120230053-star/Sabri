@@ -35,6 +35,7 @@ import type {
 import { AlertsList } from "./alerts";
 import { PhoneTasks } from "./phone-tasks";
 import "./phone.css";
+import "./phone-polish.css";
 
 type Cache = {
   offset?: number;

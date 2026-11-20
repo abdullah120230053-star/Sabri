@@ -7,6 +7,7 @@ import { cities } from '../shared/prayer';
 import { addDate, dayKey, dayOf } from '../shared/time';
 import { changeSettings, fresh, patch, tell, useSabri } from './store';
 import { themes } from './themes';
+import { themeUnlocked } from '../shared/logic/progress';
 import { artwork } from './theme-art';
 import { ThemeEditor } from './theme-editor';
 import { Updates } from './updates';
@@ -34,7 +35,7 @@ export function Onboarding({ close }: { close(): void }) {
     <div className="onboarding-stages">{stages.map((item,index) => <span key={item} className={'pill '+(stage === index ? 'active-pill':'')}>{t(item)}</span>)}</div>
     {stage === 0 && <Field label={t('Language')}><select value={settings.language} onChange={(e) => { void changeSettings({ language:e.target.value === 'ar' ? 'ar':'en' }); }}><option value="en">{t('English')}</option><option value="ar">{t('Arabic')}</option></select></Field>}
     {stage === 1 && <><p>{t('Choose your city for local prayer times.')}</p><CityField value={settings.location} onChange={(location) => { void changeSettings({ location }); }}/></>}
-    {stage === 2 && <div className="theme-grid">{themes.map((theme) => <button type="button" key={theme.id} className="theme-choice" aria-pressed={settings.theme === theme.id} onClick={() => { void changeSettings({ theme:theme.id }); }}>{theme.symbol} {i18n.t(theme.name)}</button>)}</div>}
+    {stage === 2 && <div className="theme-grid">{themes.map((theme) => <button type="button" key={theme.id} className="theme-choice" disabled={!themeUnlocked(useSabri.getState().data,theme.id)} aria-pressed={settings.theme === theme.id} onClick={() => { void changeSettings({ theme:theme.id }); }}>{theme.symbol} {i18n.t(theme.name)}</button>)}</div>}
     {stage === 3 && <p>{t('Bring in classes and deadlines from a file, copied timetable, or calendar link.')}</p>}
     <div className="form-actions"><Button variant="ghost" onClick={() => { void finish(); }}>{t('Skip setup')}</Button>{stage > 0 && <Button onClick={() => setStage(stage-1)}>{t('Previous')}</Button>}{stage < 3 ? <Button variant="primary" onClick={() => setStage(stage+1)}>{t('Next')}</Button> : <><Button onClick={() => { void finish('/import'); }}>{t('Import timetable')}</Button><Button variant="primary" onClick={() => { void finish(); }}>{t('Get started')}</Button></>}</div>
   </Modal>;
@@ -67,7 +68,7 @@ export function SettingsPage() {
     <PageHead title={t('Settings')} description={t('Set up Sabri around your day.')}/>
     <div className="settings-grid">
       <Panel title={t('Appearance')} icon={Palette}>
-        <div className="theme-grid visual-themes">{[...themes,...custom.filter((item) => !item.deletedAt).map((item) => ({ id:item.id,name:item.name,symbol:'◈',art:item.parent }))].map((theme) => <button type="button" key={theme.id} className="theme-choice" aria-pressed={settings.theme === theme.id} onClick={() => { void changeSettings({ theme:theme.id }); }}><img src={artwork[theme.art] ?? artwork.light} alt="" loading="lazy"/><span>{theme.symbol} {t(theme.name)}</span></button>)}</div>
+        <div className="theme-grid visual-themes">{[...themes,...custom.filter((item) => !item.deletedAt).map((item) => ({ id:item.id,name:item.name,symbol:'◈',art:item.parent }))].map((theme) => <button type="button" key={theme.id} className="theme-choice" disabled={!themeUnlocked(useSabri.getState().data,theme.id)} aria-pressed={settings.theme === theme.id} onClick={() => { void changeSettings({ theme:theme.id }); }}><img src={artwork[theme.art] ?? artwork.light} alt="" loading="lazy"/><span>{theme.symbol} {t(theme.name)}</span></button>)}</div>
         <div className="form-grid"><Field label={t('Language')}><select value={settings.language} onChange={(e) => { void changeSettings({ language:e.target.value === 'ar' ? 'ar':'en' }); }}><option value="en">{t('English')}</option><option value="ar">{t('Arabic')}</option></select></Field>
         <Field label={t('Time format')}><select value={settings.timeFormat} onChange={(event) => { void changeSettings({ timeFormat:event.target.value === '24h' ? '24h':'12h' }); }}><option value="12h">12h</option><option value="24h">24h</option></select></Field></div>
       </Panel>

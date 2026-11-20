@@ -1,6 +1,7 @@
 import { useState, type CSSProperties } from 'react';
 import { BookOpen, ChevronDown, ChevronUp, GraduationCap, Plus, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import { active,courseSchema,gradeComponentSchema,type RecordFor } from '../shared/schema';
 import { gpa,gpaRequirement,requiredGrade,weightedGrade } from '../shared/academic';
 import { changeSettings,fresh,patch,remove,save,tell,useSabri } from './store';
@@ -53,6 +54,7 @@ function CourseEditor({ initial,close }: { initial: Course; close(): void }) {
   </Modal>;
 }
 export function CoursesPage() {
+  const go=useNavigate();
   const { t } = useTranslation(),state = useSabri((s) => s.data);
   const [selected,setSelected] = useState<Course>();
   const [gradeEditor,setEditor] = useState(false);
@@ -72,6 +74,7 @@ export function CoursesPage() {
     <Panel title={t('Courses')} icon={BookOpen}>{listed.length ? listed.map((course,index) => <div key={course.id} className="data-row"><span className="course-dot" style={{ '--item-color':course.color } as CSSProperties}/><button className="task-title grow" onClick={() => setSelected(course)}><strong>{course.name}</strong><small>{[course.code,course.instructor,course.semester].filter(Boolean).join(' · ')}</small></button>
       <span className={'pill '+(course.absenceLimit && course.absences>=course.absenceLimit ? 'priority-high':'')}>{course.absences}{course.absenceLimit ? '/'+course.absenceLimit:''} {t('absences')}</span>
       <Button onClick={() => { void save('courses',{ ...course,absences:Math.min(1000,course.absences+1) }); }}>{t('Record absence')}</Button>
+      <Button onClick={()=>go('/resources?course='+course.id)}>{t('Resources')}</Button>
       <span className="pill">{course.finalGrade || '–'}</span>
       {[-1,1].map((dir) => <IconButton key={dir} label={t(dir<0?'Move up':'Move down')} icon={dir<0?ChevronUp:ChevronDown} disabled={!listed[index+dir]} onClick={() => { const other=listed[index+dir];if (other) void patch([{ collection:'courses',value:{ ...course,order:other.order } },{ collection:'courses',value:{ ...other,order:course.order } }]); }}/>)}
     </div>) : <Empty icon={BookOpen} title={t('No courses yet')} action={<Button icon={Plus} onClick={add}>{t('New course')}</Button>}/>}</Panel>

@@ -15,7 +15,7 @@ const tags = new Set([
   "pre",
   "br",
   "a",
-  "hr",
+  "hr", "span", "div", "img",
 ]);
 export function sanitizeNote(html: string) {
   const $ = load(html, {}, false);
@@ -28,6 +28,10 @@ export function sanitizeNote(html: string) {
       continue;
     }
     for (const attribute of Object.keys(node.attribs)) {
+      const mathType=node.attribs["data-type"];
+      if ((node.name==="span"&&mathType==="inline-math"||node.name==="div"&&mathType==="block-math")&&
+          (attribute==="data-type"||attribute==="data-latex"&&(node.attribs[attribute]?.length??0)<=8000)) continue;
+      if(node.name==="img" && (attribute==="src"&&/^sabri-media:\/\/attachments\/[a-f0-9-]{36}\/[a-f0-9-]{36}\.(?:png|jpe?g|webp|gif)$/i.test(node.attribs[attribute]??'')||attribute==="alt"))continue;
       if (node.name === "a" && attribute === "href") {
         try {
           if (

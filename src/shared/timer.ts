@@ -9,10 +9,10 @@ export function remaining(timer: Timer, now: number) {
 }
 function prepared(timer: Timer, phase: Timer['phase'], settings: Settings): Timer {
   const ms = duration(phase, settings);
-  return { ...timer, phase, status: 'idle', remainingMs: ms, durationMs: ms, endsAt: undefined, startedAt: undefined };
+  return { ...timer, phase, status: 'idle', remainingMs: ms, durationMs: ms, endsAt: undefined, startedAt: undefined, sessionId:undefined };
 }
 function start(timer: Timer, now: number): Timer {
-  return { ...timer, status: 'running', endsAt: now + timer.remainingMs, startedAt: timer.startedAt ?? now };
+  return { ...timer, sessionId:timer.sessionId??crypto.randomUUID(), status: 'running', endsAt: now + timer.remainingMs, startedAt: timer.startedAt ?? now };
 }
 function finish(state: State, now: number, completed: boolean, started: boolean) {
   const { timer, settings } = state;
@@ -23,9 +23,12 @@ function finish(state: State, now: number, completed: boolean, started: boolean)
     nextTimer = start(nextTimer, now);
   if (!started || timer.startedAt === undefined) return { ...state, timer: nextTimer };
   const ended = new Date(now).toISOString();
-  const session: RecordFor<'sessions'> = { ...stamp(undefined, ended), startedAt: new Date(timer.startedAt).toISOString(), endedAt: ended, type: timer.phase,
-    plannedMinutes: timer.durationMs / 60000, actualMinutes: (timer.durationMs - remaining(timer, now)) / 60000, completed, taskId: timer.taskId, courseId: timer.courseId };
+  const session: RecordFor<'sessions'> = { ...stamp(timer.sessionId, ended), startedAt: new Date(timer.startedAt).toISOString(), endedAt: ended, type: timer.phase,
+    plannedMinutes: timer.durationMs / 60000, actualMinutes: (timer.durationMs - remaining(timer, now)) / 60000, completed, taskId: timer.taskId, courseId: timer.courseId, assignmentId:timer.assignmentId, studySessionId:timer.studySessionId, planBlockId:timer.planBlockId };
+  const focused=timer.phase==='focus';
   return { ...state, timer: nextTimer, sessions: [...state.sessions, session],
+    assignments: focused&&timer.assignmentId ? state.assignments.map(item=>item.id===timer.assignmentId&&!item.deletedAt?{...item,updatedAt:ended,timeSpentMinutes:Math.min(60000,Math.round(item.timeSpentMinutes+session.actualMinutes))}:item):state.assignments,
+    planBlocks: focused&&completed&&timer.planBlockId ? state.planBlocks.map(item=>item.id===timer.planBlockId&&!item.deletedAt?{...item,updatedAt:ended,status:'done' as const}:item):state.planBlocks,
     tasks: completed && timer.phase === 'focus' ? state.tasks.map((item) => item.id === timer.taskId ? { ...item, updatedAt: ended, pomodoros: item.pomodoros + 1 } : item) : state.tasks };
 }
 export function moveTimer(initial: State, action: TimerAction, now = Date.now()): State {
@@ -34,7 +37,7 @@ export function moveTimer(initial: State, action: TimerAction, now = Date.now())
     state = finish(state, state.timer.endsAt, true, true);
   const { timer, settings } = state;
   if (action.type === 'tick') return state;
-  if (action.type === 'link') return { ...state, timer: { ...timer, taskId: action.taskId, courseId: action.courseId } };
+  if (action.type === 'link') return { ...state, timer: { ...timer, taskId: action.taskId, courseId: action.courseId, assignmentId:action.assignmentId, studySessionId:action.studySessionId, planBlockId:action.planBlockId } };
   if (action.type === 'select') {
     if (timer.status !== 'idle') return state;
     return { ...state, timer: prepared(timer, action.phase, settings) };

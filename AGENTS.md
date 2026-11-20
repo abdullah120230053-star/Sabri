@@ -6,7 +6,7 @@ Use strict TypeScript throughout. Explain any unavoidable use of `any`. Keep col
 
 Persistent data goes through the main-process storage service. Keep filesystem access outside the renderer. Use Electron context isolation, sandboxing, a narrow typed preload bridge, and a restrictive Content Security Policy. Keep remote content out of the main window. Validate every IPC payload with Zod.
 
-Features must work offline. Optional external network calls are limited to user-supplied ICS feeds, requested Aladhan prayer verification, and explicitly requested location detection. Never collect university passwords or session cookies. Never scrape pages behind a login. Review imported data before applying it.
+Features must work offline. Optional external network calls are limited to user-supplied ICS feeds, requested Aladhan prayer verification, explicitly requested location detection, and user-connected read-only LMS sync. Keep revocable LMS credentials and private calendar URLs in Electron safeStorage. Exclude them from planner data, backups, exports, and logs. Never write to or submit to the LMS. Never collect university passwords or session cookies. Never scrape pages behind a login. Review imported data before applying it.
 
 Allow encrypted browser push only for paired phones that enable system alerts. Run remote update checks only when requested in a publisher-configured build.
 

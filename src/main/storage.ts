@@ -4,6 +4,7 @@ import { join,basename,extname } from 'node:path';
 import { z } from 'zod';
 import { applyPatch, emptyState, stateSchema, type State, type Patch } from '../shared/schema';
 import { addDate, dayKey } from '../shared/time';
+import { recordProgress } from '../shared/logic/progress';
 import { sanitizeNote } from './note-html';
 
 export const backupId = z.string().regex(/^\d{4}-\d{2}-\d{2}(?:-migration-\d+)?$/);
@@ -137,6 +138,10 @@ export class Storage {
     try { return await readText(path, 20000); }
     catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined; throw error; }
   }
+  async deleteSecret(id:string) {
+    const path=join(this.directory,'calendar-secrets',z.uuid().parse(id)+'.enc');
+    await rm(path,{force:true});
+  }
   async writeSecret(id: string, value: string) {
     const directory = join(this.directory, 'calendar-secrets');
     await mkdir(directory, { recursive: true });
@@ -154,7 +159,7 @@ export class Storage {
       if (next === this.data) return this.data;
       const before = new Map(this.data.notes.map((note) => [note.id,note.content]));
       const notes = next.notes===this.data.notes ? next.notes : next.notes.map((note) => before.get(note.id)===note.content ? note : { ...note,content:sanitizeNote(note.content) });
-      const validated = stateSchema.parse({ ...next, notes, revision: this.data.revision + 1 });
+      const validated = stateSchema.parse({ ...recordProgress({...next,notes},new Date()), revision: this.data.revision + 1 });
       const serialized = JSON.stringify(validated);
       if (Buffer.byteLength(serialized) > MAX_BYTES) throw new Error('Data exceeds the storage limit.');
       if (preflight) await this.writeBackup(dayKey() + '-migration-' + Date.now(), JSON.stringify(this.data));

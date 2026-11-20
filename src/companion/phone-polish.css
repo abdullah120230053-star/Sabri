@@ -1,0 +1,75 @@
+/* Touch targets and reading rhythm for the phone companion. */
+main {
+  gap: 13px;
+  padding: calc(16px + env(safe-area-inset-top))
+    max(14px, env(safe-area-inset-right))
+    calc(82px + env(safe-area-inset-bottom))
+    max(14px, env(safe-area-inset-left));
+}
+.phone-brand {
+  min-height: 49px;
+  padding-block-end: 8px;
+  border-block-end: 1px solid var(--border);
+}
+.phone-brand .brand-icon {
+  background: linear-gradient(140deg, var(--primary), var(--primary-hover));
+}
+.phone-top {
+  margin: 7px 0 2px;
+  align-items: flex-end;
+}
+.phone-top h1 {
+  font-size: clamp(29px, 8vw, 41px);
+}
+.phone-top .pill {
+  padding: 5px 10px;
+}
+main .panel {
+  padding: 15px 16px;
+  box-shadow: 0 5px 17px color-mix(in srgb, var(--text) 6%, transparent);
+}
+main .panel-head {
+  margin-block-end: 13px;
+}
+main :is(.button, .field input, .field select) {
+  min-height: 42px;
+}
+main :is(.prayer-row, .task-row, .data-row) {
+  min-height: 44px;
+}
+main :is(.prayer-row, .task-row) .check-circle {
+  position: relative;
+  width: 21px;
+  height: 21px;
+  margin-inline: 5px;
+}
+main :is(.prayer-row, .task-row) .check-circle::before {
+  content: "";
+  position: absolute;
+  inset: -10px;
+}
+.phone-nav {
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  backdrop-filter: blur(14px);
+  z-index: 2;
+}
+.phone-nav .segments {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  width: min(calc(100vw - 16px), 510px);
+  gap: 2px;
+}
+.phone-nav .segments button {
+  min-height: 44px;
+  padding-inline: 4px;
+  font-size: clamp(10px, 3.15vw, 12px);
+}
+.phone-timer {
+  padding: 16px;
+  border-radius: var(--radius);
+  background: var(--surface-hover);
+}
+.phone-timer time {
+  font-size: clamp(44px, 13vw, 62px);
+  letter-spacing: -0.05em;
+}

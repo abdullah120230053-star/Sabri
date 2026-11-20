@@ -1,0 +1,369 @@
+.addon-section {
+  margin-block: 12px;
+}
+.addon-section > h3 {
+  margin-block: 8px;
+}
+.addon-controls,
+.addon-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: end;
+}
+.addon-controls .field {
+  width: max-content;
+  min-width: 110px;
+  max-width: 100%;
+}
+.addon-time {
+  min-width: 105px;
+  color: var(--primary);
+  font-variant-numeric: tabular-nums;
+}
+.addon-energy,
+.addon-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px;
+}
+.addon-energy {
+  grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
+}
+.addon-section + .addon-section {
+  border-block-start: 1px solid var(--border);
+  padding-block-start: 8px;
+}
+.addon-meter {
+  height: 7px;
+  width: 100%;
+  accent-color: var(--primary);
+}
+.addon-list {
+  display: grid;
+  gap: 8px;
+}
+.addon-preview {
+  padding: 12px;
+  background: var(--surface-hover);
+  border-radius: var(--radius);
+  overflow: auto;
+}
+.addon-controls .button {
+  margin-block-end: 0;
+}
+.addon-board {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+.addon-board section {
+  min-width: 0;
+}
+.addon-board .data-row {
+  overflow-wrap: anywhere;
+  align-items: start;
+}
+.addon-controls + .addon-controls {
+  margin-block-start: 8px;
+}
+.addon-card {
+  margin-block: 12px;
+}
+.addon-math {
+  display: inline-block;
+  unicode-bidi: isolate;
+  max-width: 100%;
+}
+.addon-math-block {
+  display: block;
+  overflow-x: auto;
+}
+.tiptap-mathematics-render {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+.tiptap img {
+  max-width: 100%;
+  max-height: 410px;
+  object-fit: contain;
+}
+.addon-print-only {
+  display: none;
+}
+.addon-formula-sheet {
+  columns: 3;
+  column-gap: 12px;
+}
+.addon-formula-sheet > section {
+  break-inside: avoid;
+  padding: 6px;
+  border-block-end: 1px solid var(--border);
+}
+.addon-formula-sheet h3 {
+  font-size: 13px;
+}
+.addon-score {
+  display: grid;
+  gap: 7px;
+}
+.stat-radar {
+  width: 130px;
+  height: 130px;
+  background: linear-gradient(145deg, var(--primary), var(--accent));
+  opacity: 0.66;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .addon-score .metric {
+    animation: addon-score-in 0.22s ease-out;
+  }
+}
+@keyframes addon-score-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.addon-mosaic,
+.addon-forest {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  align-items: center;
+  min-height: 32px;
+}
+.addon-mosaic > div {
+  width: 23px;
+  aspect-ratio: 1;
+  transform: rotate(45deg) scale(0.78);
+  background: var(--surface-hover);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-xs);
+}
+.addon-mosaic > div.filled,
+.addon-forest {
+  color: var(--success);
+}
+.addon-mosaic > div.filled {
+  background: var(--secondary);
+  border-color: var(--primary);
+}
+.addon-theme {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  overflow: hidden;
+}
+.addon-theme img {
+  display: block;
+  max-width: 100%;
+  height: 74px;
+  width: 100%;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+}
+.addon-celebration {
+  color: var(--primary);
+  background: var(--secondary);
+  padding: 10px;
+  border-radius: var(--radius-sm);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .addon-celebration {
+    animation: addon-score-in 0.25s ease-out;
+  }
+  .addon-celebration.confetti {
+    background: repeating-linear-gradient(
+      45deg,
+      var(--secondary) 0 10px,
+      var(--surface-hover) 10px 12px
+    );
+  }
+}
+.addon-summary {
+  margin-block: 15px;
+}
+.plan-timeline {
+  display: grid;
+  gap: 4px;
+  margin-block: 12px;
+}
+.plan-axis {
+  display: flex;
+  justify-content: space-between;
+}
+.plan-track {
+  position: relative;
+  height: 26px;
+  background: var(--surface-hover);
+  border-radius: var(--radius-sm);
+}
+.plan-tile {
+  height: 100%;
+  position: absolute;
+  padding-inline: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.78rem;
+  border-radius: var(--radius-xs);
+  line-height: 26px;
+  min-width: 10px;
+}
+.plan-fixed {
+  color: var(--muted);
+  background: color-mix(in srgb, var(--border-strong) 15%, var(--surface));
+}
+.plan-editable {
+  color: var(--primary);
+  background: var(--secondary);
+  touch-action: none;
+  cursor: grab;
+}
+.plan-editable > [data-resize] {
+  position: absolute;
+  inset-block: 0;
+  width: 7px;
+  cursor: ew-resize;
+}
+.plan-editable > [data-resize="start"] {
+  inset-inline-start: 0;
+}
+.plan-editable > [data-resize="end"] {
+  inset-inline-end: 0;
+}
+@media (max-width: 690px) {
+  .addon-formula-sheet {
+    columns: 2;
+  }
+}
+@media print {
+  @page {
+    size: A4;
+    margin: 11mm;
+  }
+  body:has(.addon-print-sheet, .addon-print-note) * {
+    visibility: hidden;
+  }
+  body:has(.addon-print-sheet, .addon-print-note)
+    :is(.addon-print-sheet, .addon-print-note),
+  body:has(.addon-print-sheet, .addon-print-note)
+    :is(.addon-print-sheet, .addon-print-note)
+    * {
+    visibility: visible;
+  }
+  body:has(.addon-print-sheet, .addon-print-note) {
+    background: white;
+  }
+  body:has(.addon-print-sheet, .addon-print-note) dialog[open] {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    max-width: none;
+    max-height: none;
+    overflow: visible;
+    border: 0;
+    box-shadow: none;
+    background: white;
+  }
+  body:has(.addon-print-sheet, .addon-print-note) dialog::backdrop {
+    display: none;
+  }
+  body:has(.addon-print-sheet, .addon-print-note) .workspace-content {
+    padding: 0;
+  }
+  body:has(.addon-print-sheet, .addon-print-note)
+    .workspace-content
+    > :not(:has(.addon-print-sheet, .addon-print-note)) {
+    display: none;
+  }
+  body:has(.addon-print-sheet, .addon-print-note)
+    :is(.addon-print-sheet, .addon-print-note) {
+    position: absolute;
+    top: 0;
+    inset-inline: 0;
+    overflow: visible;
+    color: #141414;
+    background: white;
+    width: 100%;
+  }
+  .addon-print-only {
+    display: block;
+    margin-block-end: 8mm;
+  }
+  .addon-print-note .tiptap {
+    padding: 0;
+    max-height: none;
+    overflow: visible;
+  }
+  .addon-print-sheet .addon-formula-sheet {
+    columns: 3;
+    gap: 3mm;
+    font-size: 9pt;
+  }
+  .addon-print-sheet .addon-formula-sheet section {
+    padding: 2mm;
+    border-color: #ddd;
+  }
+  .addon-print-sheet .addon-formula-sheet .katex {
+    font-size: 1em;
+  }
+  .addon-print-sheet .addon-formula-sheet .katex-display {
+    margin: 0.2rem 0;
+  }
+  .addon-print-sheet .addon-formula-sheet small {
+    color: #222;
+    font-size: 8pt;
+  }
+}
+
+.addon-forest .rare {
+  color: var(--gold, #d6a95f);
+}
+.race-podium {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: end;
+  gap: 0.5rem;
+  margin: 0.5rem 0;
+  padding: 0;
+  list-style: none;
+}
+.race-podium li {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  min-height: 4rem;
+  padding: 0.4rem;
+  text-align: center;
+  background: var(--surface-hover);
+  border-radius: 0.5rem;
+  overflow-wrap: anywhere;
+}
+.race-podium li:first-child {
+  order: 2;
+  min-height: 5rem;
+  color: var(--gold, #d6a95f);
+}
+.race-podium li:last-child {
+  order: 3;
+  min-height: 3.5rem;
+}
+.xp-rank {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .race-podium li,
+  .xp-rank {
+    animation: addon-score-in 0.3s ease-out both;
+  }
+  .race-podium li:first-child {
+    animation-delay: 75ms;
+  }
+}

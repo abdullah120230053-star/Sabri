@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useState } from 'react';
 import { HashRouter, NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { BarChart3, Bell, BookOpen, CalendarDays, Repeat2, Smartphone, StickyNote, Headphones, ChevronDown, ChevronLeft, ChevronRight, ClipboardList, GraduationCap, LayoutGrid, Moon, PanelLeft, Search, Settings, Timer, WifiOff } from 'lucide-react';
+import { CircleParking, ClipboardCheck, FlaskConical, Trophy, CalendarClock } from 'lucide-react';
 import { active, type State } from '../shared/schema';
 import { Dashboard } from './dashboard';
 import { UniversityPage } from './university';
@@ -20,7 +21,17 @@ import { TasksPage } from './tasks';
 import { changeSettings, useSabri } from './store';
 import { applyTheme, selectedTheme, themes } from './themes';
 import { Empty, IconButton, Modal, Toast } from './ui';
+import { themeUnlocked } from '../shared/logic/progress';
+const PlannerPage=lazy(()=>import('./planner-page').then(m=>({default:m.PlannerPage})));
+const AssignmentsPage=lazy(()=>import('./assignments-page').then(m=>({default:m.AssignmentsPage})));
+const ExamPrepPage=lazy(()=>import('./exam-prep-page').then(m=>({default:m.ExamPrepPage})));
+const FormulasPage=lazy(()=>import('./formulas-page').then(m=>({default:m.FormulasPage})));
+const ProgressPage=lazy(()=>import('./progress-page').then(m=>({default:m.ProgressPage})));
+const ParkingPage=lazy(()=>import('./parking-lot').then(m=>({default:m.ParkingPage})));
+const ParkingCapturePage=lazy(()=>import('./parking-lot').then(m=>({default:m.ParkingCapturePage})));
+const ResourcesPage=lazy(()=>import('./course-resources').then(m=>({default:m.ResourcesPage})));
 
+const Mushaf = lazy(() => import('./mushaf'));
 const StatsPage=lazy(()=>import('./stats').then(({ StatsPage })=>({ default:StatsPage })));
 const NotesPage=lazy(()=>import('./notes').then(({ NotesPage })=>({ default:NotesPage })));
 const CapturePage=lazy(()=>import('./notes').then(({ CapturePage })=>({ default:CapturePage })));
@@ -28,7 +39,13 @@ const links = [
   { label:'Workspace', pages:[
     { to:'/',text:'Overview',icon:LayoutGrid },{ to:'/schedule',text:'Schedule',icon:CalendarDays },{ to:'/calendar',text:'Calendar',icon:CalendarDays },{ to:'/courses',text:'Courses',icon:BookOpen },{ to:'/tasks',text:'Tasks',icon:ClipboardList },{ to:'/focus',text:'Focus timer',icon:Timer },{ to:'/notes',text:'Notes',icon:StickyNote },
   ] },
-  { label:'Wellbeing', pages:[{ to:'/prayers',text:'Prayer times',icon:Moon },{ to:'/habits',text:'Habits',icon:Repeat2 },{ to:'/stats',text:'Statistics',icon:BarChart3 }] },
+  { label:'Study tools',pages:[
+    {to:'/plan',text:'Today Plan',icon:CalendarClock},{to:'/exam-prep',text:'Exam Prep',icon:GraduationCap},
+    {to:'/assignments',text:'Assignments',icon:ClipboardCheck},{to:'/formulas',text:'Formula sheets',icon:FlaskConical},
+    {to:'/parking',text:'Parking lot',icon:CircleParking},{to:'/progress',text:'Progress',icon:Trophy},
+    {to:'/resources',text:'Course resources',icon:BookOpen},
+  ] },
+  { label:'Wellbeing', pages:[{ to:'/prayers',text:'Prayer times',icon:Moon },{ to:'/mushaf',text:'Quran Mushaf',icon:BookOpen },{ to:'/habits',text:'Habits',icon:Repeat2 },{ to:'/stats',text:'Statistics',icon:BarChart3 }] },
   { label:'Tools', pages:[{ to:'/import',text:'University data',icon:GraduationCap },{ to:'/music',text:'Focus sounds',icon:Headphones },{ to:'/phone',text:'Phone sync',icon:Smartphone },{ to:'/settings',text:'Settings',icon:Settings }] },
 ] as const;
 const shortcuts = ['/','/schedule','/prayers','/tasks','/focus','/stats','/calendar','/courses','/notes'];
@@ -68,7 +85,7 @@ function Sidebar({ data }: { data: State }) {
   return <aside className={'sidebar '+(collapsed ? 'is-collapsed':'')}>
     <NavLink className="brand" to="/" aria-label={t('Go to overview')}><span className="brand-icon"><BookOpen size={21} strokeWidth={2.15}/></span><div><strong>Sabri</strong><span lang="ar">صبري</span></div></NavLink>
     <nav aria-label={t('Workspace')} className="sidebar nav-body">{links.map((group) => <div className="nav-group" key={group.label}><div className="nav-label">{t(group.label)}</div>{group.pages.map(({ to,text,icon:Icon }) => <NavLink end to={to} key={to} title={t(text)} aria-label={t(text)}><Icon size={19} strokeWidth={1.8}/><span>{t(text)}</span></NavLink>)}</div>)}</nav>
-    <div className="sidebar-footer"><div className="offline"><WifiOff size={16}/><span>{t('Local workspace')}</span></div><IconButton label={t('Toggle sidebar')} icon={collapsed ? PanelLeft : rtl ? ChevronRight : ChevronLeft} onClick={() => { void changeSettings({ sidebarCollapsed:!collapsed }); }}/></div>
+    <div className="sidebar-footer"><div className="offline"><WifiOff size={16}/><span>{t(data.settings.progress.enabled&&data.settings.progress.cosmetics.title!=='none'?(data.settings.progress.cosmetics.title==='scholar'?'Study Scholar':'Steady Learner'):'Local workspace')}</span></div><IconButton label={t('Toggle sidebar')} icon={collapsed ? PanelLeft : rtl ? ChevronRight : ChevronLeft} onClick={() => { void changeSettings({ sidebarCollapsed:!collapsed }); }}/></div>
   </aside>;
 }
 function Shell() {
@@ -86,7 +103,7 @@ function Shell() {
       const letter = event.key.toLowerCase();
       if (letter==='k' || letter==='f') { event.preventDefault();setSearch(true); }
       if (letter==='t' && !event.shiftKey) { event.preventDefault();go('/tasks?new=1'); }
-      if (letter==='t' && event.shiftKey) { event.preventDefault();const list = themes.map((item) => item.id);void changeSettings({ theme:list[(list.indexOf(data.settings.theme)+1)%list.length]! }); }
+      if (letter==='t' && event.shiftKey) { event.preventDefault();const list = themes.filter(item=>themeUnlocked(data,item.id)).map((item) => item.id);void changeSettings({ theme:list[(list.indexOf(data.settings.theme)+1)%list.length]! }); }
       if (letter==='n') { event.preventDefault();go('/notes?new=1'); }
       if (letter===',') { event.preventDefault();go('/settings'); }
       if (letter==='p') { event.preventDefault();void window.sabri.print(); }
@@ -102,13 +119,20 @@ function Shell() {
     <div className="workspace">
       <header className="topbar"><div className="topbar-title"><span>{t('Workspace')}</span><ChevronRight size={13} className="dir-arrow"/><strong>{t(activePage?.text ?? 'Overview')}</strong></div>
         <div className="topbar-tools"><button className="search-control" type="button" aria-label={t('Search')} onClick={() => setSearch(true)}><Search size={17}/><span>{t('Search anything…')}</span><kbd>Ctrl K</kbd></button>
-          <label className="theme-select" title={t('Theme')}><span>{theme.symbol}</span><select aria-label={t('Theme')} value={data.settings.theme} onChange={(e) => { void changeSettings({ theme:e.target.value }); }}>{[...themes,...active(data.themes)].map((item) => <option key={item.id} value={item.id}>{t(item.name)}</option>)}</select><ChevronDown size={13}/></label>
+          <label className="theme-select" title={t('Theme')}><span>{theme.symbol}</span><select aria-label={t('Theme')} value={data.settings.theme} onChange={(e) => { void changeSettings({ theme:e.target.value }); }}>{[...themes,...active(data.themes)].map((item) => <option key={item.id} value={item.id} disabled={!themeUnlocked(data,item.id)}>{t(item.name)}</option>)}</select><ChevronDown size={13}/></label>
           <IconButton label={t('Notifications')} icon={Bell} onClick={() => setNotices(true)}/>
           <button className="profile" type="button" title={t('Settings')} aria-label={t('Settings')} onClick={() => go('/settings')}>S</button>
         </div>
       </header>
       <main id="content" tabIndex={-1} className="workspace-content" key={where.pathname}><Routes>
-        <Route path="/" element={<Dashboard/>}/><Route path="/schedule" element={<SchedulePage/>}/><Route path="/tasks" element={<TasksPage/>}/><Route path="/focus" element={<FocusPage/>}/><Route path="/calendar" element={<CalendarPage/>}/><Route path="/courses" element={<CoursesPage/>}/><Route path="/habits" element={<HabitsPage/>}/><Route path="/stats" element={<Suspense><StatsPage/></Suspense>}/><Route path="/phone" element={<PhoneSyncPage/>}/><Route path="/notes" element={<Suspense><NotesPage/></Suspense>}/><Route path="/music" element={<MusicPage/>}/><Route path="/prayers" element={<PrayersPage/>}/><Route path="/import" element={<UniversityPage/>}/><Route path="/settings" element={<SettingsPage/>}/><Route path="*" element={<Navigate to="/" replace/>}/>
+        <Route path="/" element={<Dashboard/>}/><Route path="/schedule" element={<SchedulePage/>}/><Route path="/tasks" element={<TasksPage/>}/><Route path="/focus" element={<FocusPage/>}/><Route path="/calendar" element={<CalendarPage/>}/><Route path="/courses" element={<CoursesPage/>}/><Route path="/habits" element={<HabitsPage/>}/><Route path="/stats" element={<Suspense><StatsPage/></Suspense>}/><Route path="/phone" element={<PhoneSyncPage/>}/><Route path="/notes" element={<Suspense><NotesPage/></Suspense>}/><Route path="/music" element={<MusicPage/>}/><Route path="/prayers" element={<PrayersPage/>}/><Route path="/mushaf" element={<Suspense fallback={<p role="status">{t('Loading Mushaf…')}</p>}><Mushaf/></Suspense>}/><Route path="/import" element={<UniversityPage/>}/><Route path="/settings" element={<SettingsPage/>}/><Route path="*" element={<Navigate to="/" replace/>}/>
+        <Route path="/plan" element={<Suspense><PlannerPage/></Suspense>}/>
+        <Route path="/exam-prep" element={<Suspense><ExamPrepPage/></Suspense>}/>
+        <Route path="/assignments" element={<Suspense><AssignmentsPage/></Suspense>}/>
+        <Route path="/formulas" element={<Suspense><FormulasPage/></Suspense>}/>
+        <Route path="/parking" element={<Suspense><ParkingPage/></Suspense>}/>
+        <Route path="/progress" element={<Suspense><ProgressPage/></Suspense>}/>
+        <Route path="/resources" element={<Suspense><ResourcesPage/></Suspense>}/>
       </Routes></main>
     </div>
     {showOnboarding && <Onboarding close={() => setShowOnboarding(false)}/>}
@@ -122,13 +146,14 @@ function Contents() {
   const reload = useSabri((s) => s.reload),receive = useSabri((s) => s.receive);
   const location = useLocation();
   useEffect(() => { const listen = window.sabri.changed(receive);void reload();return listen; },[reload,receive]);
-  useEffect(() => applyTheme(selectedTheme(data)),[data.settings.theme,data.themes]);
+  useEffect(() => applyTheme(selectedTheme(data)),[data.settings.theme,data.themes,data.settings.progress,data.progressEvents]);
   useEffect(() => {
     void i18n.changeLanguage(data.settings.language);
     document.documentElement.lang = data.settings.language;
     document.documentElement.dir = data.settings.language === 'ar' ? 'rtl':'ltr';
   },[data.settings.language,i18n]);
   if (!loaded) return <div className="opening"><span className="brand-icon"><BookOpen size={23}/></span>{t('Loading Sabri…')}</div>;
+  if(location.pathname==='/parking-capture')return <Suspense><ParkingCapturePage/></Suspense>;
   if (location.pathname==='/mini') return <main className="mini"><FocusCard mini/></main>;
   if (location.pathname==='/capture') return <><Suspense><CapturePage/></Suspense><Toast/></>;
   return <Shell/>;

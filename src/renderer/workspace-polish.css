@@ -1,0 +1,158 @@
+/* Shared desktop surfaces, typography, and interaction states. */
+:root {
+  --shell-line: color-mix(in srgb, var(--border) 80%, var(--text) 5%);
+  --shell-raised: color-mix(in srgb, var(--surface) 96%, var(--primary) 4%);
+  --shell-shadow: 0 1px 2px color-mix(in srgb, var(--text) 4%, transparent),
+    0 8px 24px color-mix(in srgb, var(--text) 6%, transparent);
+  --workspace-gutter: clamp(20px, 3.25vw, 54px);
+  --header-height: 68px;
+}
+
+.shell { --side: 234px; }
+.shell-collapsed { --side: 76px; }
+.shell > aside.sidebar {
+  background: linear-gradient(165deg, var(--sidebar), color-mix(in srgb, var(--sidebar) 94%, var(--primary) 6%));
+  border-color: var(--shell-line);
+}
+.shell .nav-body { background: transparent; padding-inline: 15px; scrollbar-width: thin; }
+.shell .brand { margin-block: 20px 23px; margin-inline: 17px 12px; }
+.shell .brand-icon {
+  background: linear-gradient(140deg, var(--primary), var(--primary-hover));
+  box-shadow: 0 4px 11px color-mix(in srgb, var(--primary) 28%, transparent);
+}
+.shell .nav-group + .nav-group { margin-block-start: 18px; }
+.shell .nav-label { padding-block-end: 5px; letter-spacing: .07em; }
+.shell .nav-group a { position: relative; min-height: 39px; padding-inline: 12px; font-weight: 600; }
+.shell .nav-group a.active { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 14%, transparent); }
+.shell .nav-group a.active::before {
+  position: absolute; content: ""; inset-inline-start: 0; width: 3px; inset-block: 10px;
+  background: var(--primary); border-radius: var(--radius-pill);
+}
+.shell .sidebar-footer { border-color: var(--shell-line); }
+.shell .topbar {
+  background: color-mix(in srgb, var(--header) 93%, transparent);
+  backdrop-filter: blur(14px);
+  border-color: var(--shell-line);
+  padding-inline: var(--workspace-gutter);
+}
+.shell .topbar-title { font-size: 13px; gap: 7px; min-width: 0; }
+.shell .topbar-title strong { font-size: 14px; overflow: hidden; text-overflow: ellipsis; }
+.shell .topbar-tools { flex: none; }
+.shell .search-control { min-height: 39px; border-color: var(--shell-line); }
+.shell .search-control:hover, .shell .theme-select:hover { border-color: var(--border-strong); }
+.shell .profile { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 14%, transparent); }
+.shell .workspace-content { max-width: 1570px; padding: clamp(24px, 3vw, 42px) var(--workspace-gutter) 64px; }
+.shell .page-head { border-block-end: 1px solid var(--shell-line); padding-block-end: 19px; margin-block-end: 19px; }
+.shell .page-head p, .shell .dashboard-heading p { font-size: 14px; line-height: 1.55; }
+.shell .dashboard-heading { margin-block-end: 19px; }
+.shell .heading-date { margin-block-end: 6px; width: fit-content; font-weight: 760; }
+.shell .hero {
+  min-height: clamp(218px, 19vw, 278px);
+  background: linear-gradient(90deg, var(--hero-from) 51%, var(--hero-to));
+  padding: clamp(21px, 3.2vw, 45px);
+  box-shadow: var(--shell-shadow);
+  border-radius: calc(var(--radius) + 5px);
+}
+.shell .hero-copy { width: min(490px, 58%); max-width: none; }
+.shell .hero h2 { font-size: clamp(28px, 3.3vw, 48px); max-width: 13ch; line-height: 1.03; text-wrap: balance; }
+.shell .hero p { font-size: 14px; margin: 9px 0 17px; }
+.shell .hero .button { min-height: 39px; }
+.shell .hero-kicker { margin-block-end: 9px; }
+.shell .theme-scene { width: 51%; }
+.shell .theme-scene::after {
+  background: linear-gradient(to right, var(--hero-from), color-mix(in srgb, var(--hero-from) 72%, transparent) 10%, transparent 35%);
+}
+[dir=rtl] .shell .hero { background: linear-gradient(270deg, var(--hero-from) 51%, var(--hero-to)); }
+[dir=rtl] .shell .theme-scene::after {
+  background: linear-gradient(to left, var(--hero-from), color-mix(in srgb, var(--hero-from) 72%, transparent) 10%, transparent 35%);
+}
+.shell .dashboard-metrics { gap: 13px; margin-block: 17px; }
+.shell .overview-metric { padding: 13px 14px; border-color: var(--shell-line); }
+.shell .overview-metric .tile { width: 40px; height: 40px; }
+.shell .metric-copy strong { font-size: 21px; }
+.shell .metric-arrow { align-self: center; }
+.shell .dashboard-grid, .shell .two-col, .shell .settings-grid, .shell .stack { gap: 15px; }
+.shell .panel, .shell .overview-metric { box-shadow: var(--shell-shadow); }
+.shell .panel { border-color: var(--shell-line); padding: clamp(13px, 1.55vw, 21px); }
+.shell .panel-head { margin-block-end: 13px; }
+.shell .panel-label { gap: 10px; }
+.shell .panel h2 { line-height: 1.25; }
+.shell .calendar-shell, .shell .schedule-panel { padding: 0; }
+.shell .button { min-height: 39px; }
+.shell .button-secondary { border-color: var(--shell-line); }
+.shell .button-primary { box-shadow: 0 2px 5px color-mix(in srgb, var(--primary) 19%, transparent); }
+.shell button.overview-metric:hover { border-color: color-mix(in srgb, var(--primary) 39%, var(--border)); }
+.shell .icon-button { min-width: 34px; min-height: 34px; }
+.shell :is(input:not([type=checkbox]):not([type=range]), select, textarea):not(.theme-select select) {
+  border-color: var(--shell-line); min-height: 36px;
+}
+.shell .toolbar { row-gap: 10px; }
+.shell :is(.field,.form-grid,.toolbar,.actions) > :is(input, textarea, select) { max-width: 100%; }
+.shell :is(.data-row,.task-row) { min-height: 46px; }
+.shell .data-row > .grow, .shell .task-row > .grow { overflow-wrap: anywhere; }
+.shell .empty { min-height: 163px; }
+.shell .empty.compact { min-height: 123px; }
+.shell .empty-icon { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 12%, transparent); }
+.shell .provider-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 113px), 1fr)); }
+.shell .provider-button { min-height: 77px; }
+.shell .file-zone { min-height: 188px; align-content: center; }
+.shell .month-cell { min-height: 104px; }
+.shell .prayer-row { min-height: 37px; }
+.shell .mushaf-sheet { background: var(--shell-raised); }
+.shell .mushaf-sheet h3 { font-size: 17px; }
+.shell .search-results button[data-active=true] { background: var(--surface-hover); color: var(--primary); border-radius: var(--radius-sm); }
+.shell .modal { box-shadow: 0 18px 72px color-mix(in srgb, var(--text) 29%, transparent); }
+.shell .modal-body { padding: clamp(17px, 2vw, 25px); }
+.shell .modal-head { margin-block-end: 15px; }
+.shell .modal-head h2 { font-size: 23px; }
+.shell .toast { box-shadow: var(--shell-shadow); }
+.shell .skip-link {
+  position: fixed; inset-inline-start: var(--workspace-gutter); inset-block-start: -5rem; z-index: 20;
+  padding: 10px 14px; border-radius: var(--radius-sm); background: var(--primary); color: var(--text-inverse);
+}
+.shell .skip-link:focus { inset-block-start: 8px; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .shell button.overview-metric { transition: border-color .16s, background .16s, translate .16s; }
+  .shell button.overview-metric:hover { translate: 0 -2px; }
+}
+@media (max-width: 1080px) {
+  .shell { --side: 199px; --workspace-gutter: 22px; }
+  .shell-collapsed { --side: 76px; }
+  .shell .dashboard-metrics { gap: 9px; }
+  .shell .overview-metric { padding-inline: 9px; }
+  .shell .overview-metric .tile { width: 33px; height: 33px; }
+}
+@media (max-width: 860px) {
+  .shell { --side: 70px; --workspace-gutter: 16px; }
+  .shell .nav-body { padding-inline: 10px; }
+  .shell .brand { margin-inline: auto; padding: 0; }
+  .shell .nav-group a { padding-inline: 0; }
+  .shell .topbar-tools { gap: 5px; }
+  .shell .search-control { width: clamp(145px, 29vw, 250px); }
+  .shell .hero-copy { width: 64%; }
+  .shell .theme-scene { width: 46%; }
+  .shell .metric-copy strong { font-size: 18px; }
+}
+@media (max-width: 670px) {
+  .shell { --side: 53px; --workspace-gutter: 10px; --header-height: 55px; }
+  .shell .nav-body { padding-inline: 6px; }
+  .shell .brand-icon { width: 32px; height: 32px; }
+  .shell .nav-group a { min-height: 34px; }
+  .shell .topbar-tools .search-control { width: 35px; justify-content: center; padding: 0; }
+  .shell .search-control span, .shell .search-control kbd { display: none; }
+  .shell .page-head, .shell .dashboard-heading { align-items: flex-start; flex-wrap: wrap; }
+  .shell .hero { min-height: 172px; padding: 17px; }
+  .shell .hero-copy { width: 78%; }
+  .shell .hero h2 { font-size: 26px; }
+  .shell .theme-scene { width: 38%; }
+  .shell .topbar-title strong { font-size: 12px; }
+  .shell .hero p { font-size: 12px; }
+  .shell .panel-head { flex-wrap: wrap; }
+  .shell .prayer-row { flex-wrap: wrap; }
+}
+@media print {
+  .shell { display: block; }
+  .shell .workspace-content { padding: 0; }
+  .shell .panel { box-shadow: none; }
+}

@@ -1,4 +1,6 @@
 import type { RecordFor, State } from '../shared/schema';
+import type { ProgressSkin } from '../shared/addon-schema';
+import { levelFor, themeUnlocked } from '../shared/logic/progress';
 
 const studio = {
   background: '#f7f7fb', surface: '#ffffff', sidebar: '#ffffff', header: '#ffffff', 'surface-hover': '#f3f1fa',
@@ -12,15 +14,18 @@ const studio = {
 };
 type Tokens = typeof studio;
 const dark: Tokens = { ...studio, background:'#0d1117', surface:'#161b22', sidebar:'#121720', header:'#121720', 'surface-hover':'#222b38', text:'#f0f6fc', 'text-secondary':'#aeb9c8', 'text-inverse':'#0d1117', primary:'#7db9ff', 'primary-hover':'#a1cbff', secondary:'#223752', accent:'#d2a8ff', success:'#82e0b0', warning:'#ffc184', error:'#ff9eb0', info:'#a7c9ff', border:'#2e3848', 'border-strong':'#7d8999', 'border-focus':'#8ebaff', 'prayer-active':'#80dfc1', 'prayer-completed':'#82e0b0', 'pomodoro-work':'#9dc7ff', 'pomodoro-break':'#82e0b0', 'hero-from':'#1c2d4d', 'hero-to':'#25233c', 'hero-text':'#f0f6fc', 'hero-muted':'#c6d3ec', 'hero-art':'#5783be', 'hero-art-bright':'#8da9e3', 'soft-mint':'#19372e', 'soft-orange':'#402a25', 'soft-blue':'#223554', 'soft-rose':'#3d283e', 'subject-1':'#b8a4ff', 'subject-2':'#82dfca', 'subject-3':'#ffab8c', 'subject-4':'#a9c6ff', 'subject-5':'#fba8cd', 'subject-6':'#b6d089' };
-type Theme = { id: string; art: string; name: string; symbol: string; colors: Tokens; radius: number; skin: string; pattern: string; font: 'inter' | 'manrope' | 'arabic'; shadow: 'none' | 'soft' | 'strong' };
+type Theme = { id: string; progressSkin: ProgressSkin; art: string; name: string; symbol: string; colors: Tokens; radius: number; skin: string; pattern: string; font: 'inter' | 'manrope' | 'arabic'; shadow: 'none' | 'soft' | 'strong' };
+const progressSkins: Readonly<Partial<Record<string, ProgressSkin>>> = {
+  f1: 'championship', football: 'league', anime: 'xp', nature: 'forest', cyberpunk: 'credits', islamic: 'mosaic',
+};
 function themed(id: string, name: string, symbol: string, radius: number, skin: string, pattern: string, overrides: Partial<Tokens>): Theme {
   const colors = { ...dark, ...overrides };
   colors['pomodoro-work'] = overrides.primary ?? colors.primary;
   colors['primary-hover'] = overrides.primary ?? colors.primary;
-  return { id, art:id, name, symbol, colors, radius, skin, pattern, font: 'manrope', shadow: 'soft' };
+  return { id, art:id, progressSkin: progressSkins[id] ?? 'minimal', name, symbol, colors, radius, skin, pattern, font: 'manrope', shadow: 'soft' };
 }
 export const themes: Theme[] = [
-  { id:'light', art:'light', name:'Clean Light', symbol:'☀️', colors:studio, radius:16, skin:'ring', pattern:'none', font:'manrope', shadow:'soft' },
+  { id:'light', art:'light', progressSkin:'minimal', name:'Clean Light', symbol:'☀️', colors:studio, radius:16, skin:'ring', pattern:'none', font:'manrope', shadow:'soft' },
   themed('dark','Midnight','🌙',12,'ring','none',{}),
   themed('f1','Formula 1','🏁',5,'lap','grid',{background:'#1a1a2e',surface:'#22243a',sidebar:'#171728',header:'#171728',primary:'#fc534c','text-inverse':'#160503',secondary:'#42242c',accent:'#66e4d3','hero-from':'#3b1c2a','hero-to':'#211a32','hero-art':'#eb5861','hero-art-bright':'#ac5769'}),
   themed('cyberpunk','Cyberpunk','🌆',3,'neon','grid',{background:'#0a0a0f',surface:'#1c1a2f',sidebar:'#101019',header:'#101019',primary:'#ff84c6','text-inverse':'#170817',secondary:'#492240',accent:'#74ffe9','hero-from':'#37133c','hero-to':'#191e42','hero-art':'#e15dab','hero-art-bright':'#54d2ee'}),
@@ -30,9 +35,13 @@ export const themes: Theme[] = [
   themed('islamic','Calligraphy','🕌',12,'geometric','diagonal',{background:'#1c1917',surface:'#2b2620',sidebar:'#211d19',header:'#211d19',primary:'#ebc275','text-inverse':'#291d08',secondary:'#443823',accent:'#82dbb8','prayer-active':'#83e2b7','prayer-completed':'#ebc275','hero-from':'#453825','hero-to':'#28271b','hero-art':'#be9a56','hero-art-bright':'#dbc387'}),
 ];
 export function selectedTheme(state: State): Theme {
+  if(!themeUnlocked(state,state.settings.theme)) return themes[0]!;
   const custom = state.themes.find((item) => item.id === state.settings.theme && !item.deletedAt);
-  if (custom) return makeTheme(custom);
-  return themes.find((item) => item.id === state.settings.theme) ?? themes[0]!;
+  const theme=custom?makeTheme(custom):themes.find((item) => item.id === state.settings.theme) ?? themes[0]!;
+  const {progress}=state.settings,skin=progress.cosmetics.timer;
+  if (!progress.enabled || skin==='theme') return theme;
+  const points=state.progressEvents.filter(row=>!row.deletedAt&&(progress.includeWorship||row.sourceType!=='worship')).reduce((sum,row)=>sum+row.points,0);
+  return levelFor(points)>=(skin==='neon'?5:3)?{...theme,skin}:theme;
 }
 export function makeTheme(custom: RecordFor<'themes'>) {
   const parent = themes.find((item) => item.id === custom.parent) ?? themes[0]!;

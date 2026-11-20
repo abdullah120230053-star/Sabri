@@ -29,6 +29,13 @@ import { PrayerChecklist } from "./prayers";
 import { QuoteWidget } from "./quotes";
 import { TodaySchedule } from "./schedule";
 import { GoalSummary } from "./goal-widget";
+import { lazy,Suspense } from 'react';
+const TodayPlanWidget=lazy(()=>import('./planner-page').then(m=>({default:m.TodayPlanWidget})));
+const AssignmentsWidget=lazy(()=>import('./assignments-page').then(m=>({default:m.AssignmentsWidget})));
+const ExamWidget=lazy(()=>import('./exam-prep-page').then(m=>({default:m.ExamWidget})));
+const ParkingWidget=lazy(()=>import('./parking-lot').then(m=>({default:m.ParkingWidget})));
+const ProgressWidget=lazy(()=>import('./progress-page').then(m=>({default:m.ProgressWidget})));
+const FormulaWidget=lazy(()=>import('./formulas-page').then(m=>({default:m.FormulaWidget})));
 import { TodayTasks } from "./tasks";
 import { changeSettings, fresh, remove, save, tell, useSabri } from "./store";
 import { Button, Field, IconButton, Panel, useNow } from "./ui";
@@ -49,6 +56,7 @@ const labels: Record<WidgetId, string> = {
   goal: "Study goal",
   notes: "Quick note",
   clock: "Clock",
+  plan:'Today Plan',assignmentDue:'Assignments due',examReady:'Exam readiness',parking:'Parking lot',progress:'Progress',formulaToday:'Formula of the day',
 };
 const inventory: Widget[] = [
   { i: "schedule", x: 0, y: 0, w: 2, h: 4 },
@@ -64,6 +72,8 @@ const inventory: Widget[] = [
   { i: "music", x: 3, y: 14, w: 1, h: 2 },
   { i: "notes", x: 0, y: 16, w: 2, h: 2 },
   { i: "clock", x: 2, y: 16, w: 2, h: 2 },
+  {i:'plan',x:0,y:18,w:2,h:3},{i:'assignmentDue',x:2,y:18,w:2,h:3},{i:'examReady',x:0,y:21,w:2,h:2},
+  {i:'parking',x:2,y:21,w:2,h:2},{i:'progress',x:0,y:23,w:2,h:3},{i:'formulaToday',x:2,y:23,w:2,h:2},
 ];
 const presets: Record<string, { name: string; widgets: Widget[] }> = {
   overview: { name: "Overview", widgets: inventory },
@@ -163,6 +173,9 @@ const widgets: Record<WidgetId, () => ReactNode> = {
   goal: () => <GoalSummary />,
   notes: () => <QuickNote />,
   clock: () => <ClockCard />,
+  plan:()=> <Suspense><TodayPlanWidget/></Suspense>,assignmentDue:()=> <Suspense><AssignmentsWidget/></Suspense>,
+  examReady:()=> <Suspense><ExamWidget/></Suspense>,parking:()=> <Suspense><ParkingWidget/></Suspense>,
+  progress:()=> <Suspense><ProgressWidget/></Suspense>,formulaToday:()=> <Suspense><FormulaWidget/></Suspense>,
 };
 export function DashboardWidgets({
   editing,
@@ -229,6 +242,7 @@ export function DashboardWidgets({
           <MusicWidget />
           <QuickNote />
           <ClockCard />
+          {widgets.plan()}{widgets.assignmentDue()}{widgets.examReady()}{widgets.parking()}{widgets.progress()}{widgets.formulaToday()}
         </div>
       </>
     );

@@ -4,13 +4,15 @@ import { active, prayers, stamp, type State } from '../shared/schema';
 import { addDate, atTime, blocksOn, dayKey } from '../shared/time';
 import { moveTimer,remaining } from '../shared/timer';
 import { Storage } from './storage';
+import { addonNotices } from '../shared/logic/addon-notices';
+import { dueMushafWerds, werdRange } from '../shared/mushaf-werd';
 
 type Notice = Omit<State['notices'][number], keyof ReturnType<typeof stamp>>;
 const strings = {
   en: { prayer: 'Prayer', upcoming: 'Coming up', focus: 'Focus session complete', break: 'Break complete', class: 'Class reminder', task: 'Task reminder', event: 'Calendar reminder', habit: 'Habit reminder', goal: 'Time for your study goal', pause: 'Take a short break', fajr: 'Fajr', dhuhr: 'Dhuhr', asr: 'Asr', maghrib: 'Maghrib', isha: 'Isha' },
   ar: { prayer: 'الصلاة', upcoming: 'قريبًا', focus: 'انتهت جلسة التركيز', break: 'انتهت الاستراحة', class: 'تذكير بالمحاضرة', task: 'تذكير بالمهمة', event: 'تذكير بالتقويم', habit: 'تذكير بالعادة', goal: 'حان وقت هدف الدراسة', pause: 'خذ استراحة قصيرة', fajr: 'الفجر', dhuhr: 'الظهر', asr: 'العصر', maghrib: 'المغرب', isha: 'العشاء' }
 };
-export function runScheduler(storage: Storage, show: () => void, refreshTray: () => void) {
+export function runScheduler(storage: Storage, show: () => void, refreshTray: () => void, suppressNative:()=>boolean=()=>false) {
   let lastTick = Date.now() - 1000;
   let busy = false;
   const interval = setInterval(async () => {
@@ -53,6 +55,18 @@ export function runScheduler(storage: Storage, show: () => void, refreshTray: ()
         if (focused < settings.focus.dailyGoal)
           due(atTime(today, settings.notifications.daysGoal, zone), 0, { title: translator.goal, body: '', kind: 'goal', reference: today });
       }
+      if (settings.notifications.enabled) {
+        const format = new Intl.NumberFormat(settings.language, { useGrouping: false });
+        for (const { werd, reference } of dueMushafWerds(previous, new Date(now))) {
+          const { start, end } = werdRange(werd);
+          const pages = format.format(start) + '–' + format.format(end);
+          candidates.push({
+            title: settings.language === 'ar' ? 'تذكير بورد المصحف' : 'Mushaf Werd reminder',
+            body: werd.title + ' · ' + (settings.language === 'ar' ? 'الصفحات ' : 'Pages ') + pages,
+            kind: 'mushaf-werd', reference,
+          });
+        }
+      }
       for (const event of active(previous.calendar))
         for (const lead of event.reminders)
           due(atTime(event.date, event.time ?? '09:00', zone), lead, { title: translator.event, body: event.title, kind: 'event', reference: event.id + lead });
@@ -60,18 +74,24 @@ export function runScheduler(storage: Storage, show: () => void, refreshTray: ()
         const goal=settings.notifications.breakAfter*60000,elapsed=previous.timer.durationMs-remaining(previous.timer,now);
         if (elapsed>=goal && elapsed-(now-since)<goal) candidates.push({ title:translator.pause,body:'',kind:'break',reference:String(previous.timer.startedAt) });
       }
+      const {notices:addon,rescheduled}=addonNotices(previous,new Date(now),since,quiet);
+      candidates.push(...addon);
       const ended = previous.timer.status === 'running' && (previous.timer.endsAt ?? Infinity) <= now;
       if (ended) candidates.push({ title: previous.timer.phase === 'focus' ? translator.focus : translator.break, body: '', kind: 'focus', reference: String(previous.timer.endsAt) });
       const newNotices = candidates.filter((item) => !previous.notices.some((notice) => notice.kind === item.kind && notice.reference === item.reference));
-      if (ended || pause || (newNotices.length && settings.notifications.enabled)) {
+      if (ended || pause || rescheduled.length || (newNotices.length && settings.notifications.enabled)) {
         await storage.update((state) => {
           let next = moveTimer(state, { type: 'tick' }, now);
+          if(rescheduled.length){
+            const replacements=new Map(rescheduled.map(item=>[item.id,item]));
+            next={...next,studySessions:next.studySessions.map(item=>replacements.get(item.id)??item)};
+          }
           if (pause && next.timer.phase === 'focus') next = moveTimer(next, { type: 'pause' }, now);
           if (state.settings.notifications.enabled && newNotices.length)
             next = { ...next, notices: [...next.notices, ...newNotices.map((item) => ({ ...stamp(), ...item }))].slice(-250) };
           return next;
         });
-        if (settings.notifications.enabled && Notification.isSupported()) for (const item of newNotices) {
+        if (settings.notifications.enabled && !suppressNative() && Notification.isSupported()) for (const item of newNotices) {
           const notification = new Notification({ title: item.title, body: item.body, silent: item.kind === 'focus' });
           notification.once('click', show);
           notification.show();

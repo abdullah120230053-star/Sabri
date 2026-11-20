@@ -6,6 +6,7 @@ import { active } from '../shared/schema';
 import { addDate,dayKey,friendlyDate } from '../shared/time';
 import { gpa,studyStats } from '../shared/academic';
 import { changeSettings,useSabri } from './store';
+import { StudyInsights } from './study-insights';
 import { Empty,Field,PageHead,Panel,Segments,useNow } from './ui';
 import { GoalSummary } from './goal-widget';
 const chartTip = { background:'var(--surface)',borderColor:'var(--border)',borderRadius:'var(--radius-sm)',color:'var(--text)' };
@@ -40,5 +41,6 @@ export function StatsPage() {
       })}</div></Panel>
       <Panel title={t('GPA trend')} icon={BarChart3}>{trend.length ? <div className="chart-area"><ResponsiveContainer width="100%" height="100%"><LineChart data={trend}><XAxis dataKey="semester"/><YAxis/><Tooltip contentStyle={chartTip}/><Line dataKey="gpa" name={t('GPA')} stroke="var(--primary)" strokeWidth={2}/></LineChart></ResponsiveContainer></div> : <Empty compact icon={BarChart3} title={t('Add course grades to see your GPA trend')}/>}</Panel>
     </div>
+    <StudyInsights/>
   </>;
 }

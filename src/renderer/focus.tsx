@@ -6,6 +6,7 @@ import { active, type Timer as TimerState } from '../shared/schema';
 import { remaining, timerLabel } from '../shared/timer';
 import { dayKey, friendlyDate } from '../shared/time';
 import { useSabri } from './store';
+import { ParkingInput, ParkingReview } from './parking-lot';
 import { Button, Empty, Field, IconButton, PageHead, Panel, Segments, useNow } from './ui';
 
 const phaseLabels = { focus:'Focus',short:'Short break',long:'Long break' };
@@ -42,6 +43,7 @@ export function FocusCard({ compact = false, mini = false }: { compact?: boolean
     {check && !compact && !mini && timer.status === 'idle' && timer.phase === 'focus' && <label className="check-label"><input type="checkbox" checked={ready} onChange={(event) => setReady(event.target.checked)}/>{t('My phone is away and my materials are ready.')}</label>}
     <div className="focus-actions"><IconButton label={t('Reset')} icon={RotateCcw} disabled={strict} onClick={() => { void action({ type:'reset' }); }}/><Button variant="primary" icon={running ? Pause : Play} onClick={toggle} disabled={check && !ready && timer.status === 'idle' && timer.phase === 'focus'}>{start}</Button><IconButton label={t('Skip')} icon={SkipForward} disabled={strict} onClick={() => { void action({ type:'skip' }); }}/></div>
     {!compact && !mini && <div className="focus-foot"><Button variant="ghost" onClick={() => { void action({ type:'extend' }); }}>{t('+5 min')}</Button><span className="muted">{t('Round {{current}} of {{total}}',{ current:timer.round % settings.focus.rounds + 1,total:settings.focus.rounds })}</span><Button variant="ghost" onClick={() => setCheck(!check)}>{t('Pre-focus checklist')}</Button></div>}
+    {mini&&!compact&&<Button className="addon-section" onClick={()=>void window.sabri.captureParking()}>{t('Park a distraction')}</Button>}
   </Panel>;
 }
 export function FocusPage() {
@@ -53,11 +55,14 @@ export function FocusPage() {
   return <><PageHead title={t('Focus timer')} description={t('Make room for one thing at a time.')}/>
     <div className="two-col"><FocusCard/><div className="stack"><Panel title={t('Daily focus')} icon={CircleCheck} tone="mint"><div className="metric">{Math.round(todaySessions.reduce((sum,item) => sum + item.actualMinutes,0))} <span>{t('minutes')}</span></div><p className="muted">{t('{{count}} completed sessions',{ count:todaySessions.length })}</p></Panel>
     <Panel title={t('Recent sessions')} icon={Coffee}>{sessions.length ? sessions.map((item) => <div className="data-row" key={item.id}><span className="grow"><strong>{t(phaseLabels[item.type])}</strong><small>{friendlyDate(dayKey(new Date(item.endedAt),state.settings.location.timezone),state.settings.language,{ month:'short',day:'numeric' })}</small></span><span className="pill">{Math.round(item.actualMinutes)} {t('min')}</span></div>) : <Empty compact icon={Coffee} title={t('No sessions yet')}/>}</Panel></div></div>
+    <Panel title={t('Park a distraction')} icon={Timer}><ParkingInput/></Panel>
+    {state.settings.parking.breakReview&&state.timer.phase!=='focus'&&<ParkingReview focused/>}
   </>;
 }
 export function useFocusSound() {
   const notices = useSabri((s) => s.data.notices);
   const focus = useSabri((s) => s.data.settings.focus);
+  const chime = useSabri(s=>s.data.settings.progress.enabled&&s.data.settings.progress.cosmetics.sound==='chime');
   const last = notices.filter((item) => item.kind === 'focus').at(-1);
   useEffect(() => {
     if (!last || Date.now() - Date.parse(last.createdAt) > 3000 || focus.sound === 'off') return;
@@ -65,7 +70,7 @@ export function useFocusSound() {
     const main = audio.createGain();
     main.gain.value = focus.volume * 0.16;
     main.connect(audio.destination);
-    const notes = focus.sound === 'soft' ? [440,550] : [659,784,988];
+    const notes = chime ? [523,659,784] : focus.sound === 'soft' ? [440,550] : [659,784,988];
     const start = audio.currentTime;
     notes.forEach((hertz,index) => {
       const oscillator = audio.createOscillator(),gain = audio.createGain(),time = start + index * 0.17;

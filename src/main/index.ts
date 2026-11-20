@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, globalShortcut, ipcMain, Menu, nativeImage, net, protocol, session, Tray, type IpcMainInvokeEvent } from 'electron';
+import { app, BrowserWindow, dialog, globalShortcut, ipcMain, Menu, nativeImage, net, protocol, session, shell, Tray, type IpcMainInvokeEvent } from 'electron';
 import { extname, join } from 'node:path';
 import { readFile, stat, writeFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
@@ -20,6 +20,10 @@ import { phoneDeviceUpdate,syncStartOptions } from '../shared/phone';
 import { approximateLocation,prayerComparison } from './prayer-online';
 import { editPrayer,prayerEditSchema } from '../shared/prayer-record';
 import { configureUpdater } from './updater';
+import { generatePlan, plannerRequest } from '../shared/logic/planner';
+import { lmsApplyRequest,lmsConnectRequest } from '../shared/logic/lms-mapping';
+import { LmsService } from './integrations/service';
+import { Attachments,attachmentAdd,attachmentOpen,noteImageRequest } from './attachments';
 
 protocol.registerSchemesAsPrivileged([{ scheme:'sabri-media',privileges:{ standard:true,secure:true,stream:true,supportFetchAPI:true } }]);
 app.setName('Sabri');
@@ -31,6 +35,7 @@ if (!singleton) app.quit();
 let main: BrowserWindow | undefined;
 let floating: BrowserWindow | undefined;
 let capture: BrowserWindow | undefined;
+let parking: BrowserWindow | undefined;
 let quitting = false;
 let tray: Tray | undefined;
 const words = {
@@ -43,10 +48,10 @@ const renderer = (hash = '') => {
   const development = process.env.ELECTRON_RENDERER_URL;
   return development ? new URL(hash, development).href : pathToFileURL(join(__dirname, '../renderer/index.html')).href + hash;
 };
-function windowFor(mode?: 'mini'|'capture') {
+function windowFor(mode?: 'mini'|'capture'|'parking-capture') {
   const quick=!!mode;
   const win = new BrowserWindow({
-    width: mode==='capture' ? 475 : quick ? 355 : 1390, height: mode==='capture' ? 480 : quick ? 365 : 960, minWidth: quick ? 300 : 720, minHeight: quick ? 250 : 550,
+    width: mode==='parking-capture' ? 420 : mode==='capture' ? 475 : quick ? 355 : 1390, height: mode==='parking-capture' ? 260 : mode==='capture' ? 480 : quick ? 365 : 960, minWidth: quick ? 300 : 720, minHeight: quick ? 250 : 550,
     show: false, autoHideMenuBar: true, alwaysOnTop: quick, backgroundColor: '#f7f7fb', title: 'Sabri', icon: join(files(), 'icon.png'),
     webPreferences: { preload: join(__dirname, '../preload/index.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true }
   });
@@ -62,7 +67,7 @@ function show() {
   main.focus();
 }
 function assertIpc(event: IpcMainInvokeEvent) {
-  const trusted = [main, floating, capture].some((window) => window && !window.isDestroyed() && window.webContents.id === event.sender.id);
+  const trusted = [main, floating, capture, parking].some((window) => window && !window.isDestroyed() && window.webContents.id === event.sender.id);
   if (!trusted || event.senderFrame !== event.sender.mainFrame) throw new Error('Invalid IPC sender.');
 }
 function register<T>(channel: string, schema: z.ZodType<T>, action: (value: T, event: IpcMainInvokeEvent) => unknown) {
@@ -111,12 +116,59 @@ if (singleton) void app.whenReady().then(async () => {
     tray.on('click', show);
   }
   const noArgs = z.undefined();
+  const lms=new LmsService(storage);
+  const attachments=new Attachments(storage,join(app.getPath('userData'),'sabri-data','attachments'));
+  const refreshLms=setInterval(()=>lms.poll(),30000);
+  let mockQuietUntil=0;
+  register('addon:mock-quiet',z.number().int().min(0).max(180),(minutes)=>{mockQuietUntil=minutes>0?Date.now()+minutes*60000:0;});
+  register('planner:generate',plannerRequest,(input)=>generatePlan(storage.state,input));
+  const openParking=()=>{
+    if(!parking||parking.isDestroyed())parking=windowFor('parking-capture');
+    else { parking.show();parking.focus(); }
+  };
+  register('parking:capture',noArgs,openParking);
+  register('lms:connect',lmsConnectRequest,(input)=>lms.connect(input));
+  register('lms:sync',z.uuid(),(id)=>lms.sync(id));
+  register('lms:apply',lmsApplyRequest,(input)=>lms.apply(input));
+  register('lms:status',noArgs,()=>active(storage.state.lmsConnections));
+  register('lms:disconnect',z.uuid(),(id)=>lms.disconnect(id));
+  register('lms:import-file',z.string().trim().min(1).max(200),async(label,event)=>{
+    const win=BrowserWindow.fromWebContents(event.sender)!;
+    const chosen=await dialog.showOpenDialog(win,{properties:['openFile'],filters:[{name:'iCalendar',extensions:['ics']}]});
+    const path=chosen.filePaths[0];if(!path)return null;
+    return lms.importCalendar(await readText(path,6000000),label);
+  });
+  register('attachments:add',attachmentAdd,(input,event)=>attachments.add(input,BrowserWindow.fromWebContents(event.sender)!));
+  register('attachments:open',attachmentOpen,(input)=>attachments.open(input));
+  register('attachments:image',noteImageRequest,(input)=>attachments.addImage(input));
+  register('addon:export-pdf',z.enum(['formula','note']),async(kind,event)=>{
+    const file=await dialog.showSaveDialog(BrowserWindow.fromWebContents(event.sender)!,{defaultPath:kind==='formula'?'Sabri Formula Sheet.pdf':'Sabri Note.pdf',filters:[{name:'PDF',extensions:['pdf']}]});
+    if(!file.filePath)return false;
+    const pdf=await event.sender.printToPDF({pageSize:'A4',preferCSSPageSize:true,printBackground:false,pageRanges:kind==='formula'?'1':undefined});
+    await writeFile(file.filePath,pdf);return true;
+  });
+  register('addon:open-resource',z.uuid(),async id=>{
+    const value=active(storage.state.courseResources).find(item=>item.id===id)?.url;
+    if(value&&new URL(value).protocol==='https:')await shell.openExternal(value);
+  });
+  register('addon:save-recap',z.instanceof(Uint8Array).refine(bytes=>bytes.byteLength<6000000),async(bytes,event)=>{
+    const body=Buffer.from(bytes);
+    if(!body.subarray(0,8).equals(Buffer.from('89504e470d0a1a0a','hex')))throw new Error('Invalid PNG.');
+    const file=await dialog.showSaveDialog(BrowserWindow.fromWebContents(event.sender)!,{defaultPath:'Sabri Study Recap.png',filters:[{name:'PNG',extensions:['png']}]});
+    if(!file.filePath)return false;
+    await writeFile(file.filePath,body);return true;
+  });
   const updater=configureUpdater();
   register('app:updates:check',noArgs,updater.check);
   register('app:updates:download',noArgs,updater.download);
   register('app:updates:install',noArgs,updater.install);
   protocol.handle('sabri-media',(request) => {
     const url = new URL(request.url);
+    if(url.hostname==='attachments'&&request.method==='GET'){
+      const [noteId,file]=url.pathname.slice(1).split('/');
+      if(!noteId||!file)return new Response(null,{status:404});
+      return attachments.image(noteId,file).then(path=>net.fetch(pathToFileURL(path).href)).catch(()=>new Response(null,{status:404}));
+    }
     const filename = /^\/([a-f0-9-]{36}\.(?:mp3|wav|ogg|m4a|flac))$/i.exec(url.pathname)?.[1];
     if (url.hostname!=='sounds' || !filename || request.method!=='GET') return new Response(null,{ status:404 });
     return net.fetch(pathToFileURL(storage.soundPath(filename)).href,{ headers:request.headers });
@@ -238,7 +290,8 @@ if (singleton) void app.whenReady().then(async () => {
   show();
   if (main) keepOpen(main);
   refreshTray();
-  const stopScheduler = runScheduler(storage, show, refreshTray);
+  const stopScheduler = runScheduler(storage, show, refreshTray,()=>Date.now()<mockQuietUntil);
+  globalShortcut.register('CommandOrControl+Alt+P',openParking);
   globalShortcut.register('CommandOrControl+Alt+N',() => {
     if (!capture || capture.isDestroyed()) capture=windowFor('capture');
     else { capture.show();capture.focus(); }
@@ -256,6 +309,7 @@ if (singleton) void app.whenReady().then(async () => {
     event.preventDefault();
     quitting = true;
     stopScheduler();
+    clearInterval(refreshLms);
     clearInterval(checkFeeds);
     globalShortcut.unregisterAll();
     tray?.destroy();
