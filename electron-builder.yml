@@ -1,0 +1,25 @@
+appId: com.sabri.app
+productName: Sabri
+directories:
+  output: release
+  buildResources: build
+files:
+  - out/**/*
+  - package.json
+extraResources:
+  - resources
+win:
+  target: [nsis, portable]
+  icon: resources/icon.png
+  signAndEditExecutable: false
+mac:
+  target: [dmg]
+  icon: resources/icon.png
+linux:
+  target: [AppImage, deb]
+  icon: resources/icon.png
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
