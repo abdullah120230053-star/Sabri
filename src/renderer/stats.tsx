@@ -1,5 +1,5 @@
 import { useMemo,useState } from 'react';
-import { Activity,BarChart3,CalendarDays,ChartPie,CircleCheck,Flame,Goal,Moon,Timer } from 'lucide-react';
+import { Activity,BarChart3,CalendarDays,ChartPie,CircleCheck,Flame,Moon,Timer } from 'lucide-react';
 import { Bar,BarChart,CartesianGrid,Cell,Pie,PieChart,ResponsiveContainer,Tooltip,XAxis,YAxis,Line,LineChart } from 'recharts';
 import { useTranslation } from 'react-i18next';
 import { active } from '../shared/schema';
@@ -7,13 +7,8 @@ import { addDate,dayKey,friendlyDate } from '../shared/time';
 import { gpa,studyStats } from '../shared/academic';
 import { changeSettings,useSabri } from './store';
 import { Empty,Field,PageHead,Panel,Segments,useNow } from './ui';
+import { GoalSummary } from './goal-widget';
 const chartTip = { background:'var(--surface)',borderColor:'var(--border)',borderRadius:'var(--radius-sm)',color:'var(--text)' };
-export function GoalSummary() {
-  const { t } = useTranslation(),state = useSabri((s) => s.data);
-  const today = dayKey(useNow(60000),state.settings.location.timezone);
-  const { totalMinutes } = studyStats(state,today,1),goal = state.settings.focus.dailyGoal;
-  return <Panel title={t('Study goal')} icon={Goal} tone="mint"><div className="metric">{Math.round(totalMinutes)} <span>/ {goal} {t('min')}</span></div><progress value={Math.min(goal,totalMinutes)} max={goal} className="full-width"/></Panel>;
-}
 export function StatsPage() {
   const { t } = useTranslation(),state = useSabri((s) => s.data),today = dayKey(useNow(60000),state.settings.location.timezone);
   const [range,setRange] = useState<'today'|'week'|'month'|'all'>('week');
@@ -47,4 +42,3 @@ export function StatsPage() {
     </div>
   </>;
 }
-

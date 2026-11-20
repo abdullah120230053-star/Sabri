@@ -5,6 +5,7 @@ import { importChanges } from '../src/shared/imports';
 import { parseTable } from '../src/main/import-table';
 import { exportIcs,parseIcs } from '../src/main/import-ics';
 import { pdfText } from '../src/main/import-pdf';
+import { blocksOn } from '../src/shared/time';
 
 const fixture = (file: string) => new URL('./fixtures/'+file,import.meta.url);
 it('reads CSV columns and English pasted rows',async () => {
@@ -40,3 +41,14 @@ it('deduplicates calendar refreshes, updates edited UIDs, and exports all-day ev
   expect(parseIcs(exportIcs(updated,'calendar'),zone).rows).toMatchObject([{ start:'20:30' },{ start:'' }]);
 });
 
+
+it('retains term boundaries and excluded dates from a weekly university feed',()=>{
+  const input=['BEGIN:VCALENDAR','VERSION:2.0','BEGIN:VEVENT','UID:term-one','DTSTART;TZID=Africa/Cairo:20261116T090000','DTEND;TZID=Africa/Cairo:20261116T103000','RRULE:FREQ=WEEKLY;COUNT=4','EXDATE;TZID=Africa/Cairo:20261123T090000','SUMMARY:Academic writing','END:VEVENT','END:VCALENDAR'].join('\r\n');
+  const rows=parseIcs(input,'Africa/Cairo').rows;
+  expect(rows[0]).toMatchObject({ recurrence:'weekly',date:'2026-11-16',untilDate:'2026-12-07',exceptionDates:['2026-11-23'],start:'09:00' });
+  const state=emptyState();
+  const scheduled=applyPatch(state,{ changes:importChanges(state,{ rows,destination:'schedule' }).changes });
+  expect(blocksOn(scheduled.schedule,'2026-11-23')).toHaveLength(0);
+  expect(blocksOn(scheduled.schedule,'2026-11-30')).toHaveLength(1);
+  expect(blocksOn(scheduled.schedule,'2026-12-14')).toHaveLength(0);
+});

@@ -1,0 +1,17 @@
+{
+  "id": "/",
+  "name": "Sabri · صبري",
+  "short_name": "Sabri",
+  "display": "standalone",
+  "start_url": "/",
+  "background_color": "#f7f7fb",
+  "theme_color": "#6243bb",
+  "icons": [
+    {
+      "src": "/icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

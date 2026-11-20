@@ -8,4 +8,6 @@ Persistent data goes through the main-process storage service. Keep filesystem a
 
 Features must work offline. Optional external network calls are limited to user-supplied ICS feeds, requested Aladhan prayer verification, and explicitly requested location detection. Never collect university passwords or session cookies. Never scrape pages behind a login. Review imported data before applying it.
 
+Allow encrypted browser push only for paired phones that enable system alerts. Run remote update checks only when requested in a publisher-configured build.
+
 Cover pure logic with unit tests, including time calculations, scheduling conflicts, import formats, GPA, stats, streaks, and sync behavior. Record decisions about ambiguous requirements in `docs/DECISIONS.md`. Bundle only appropriately licensed fonts, images, and sounds. Record third-party assets in `resources/LICENSES.md`. Use original artwork for themes and avoid franchise or club marks.

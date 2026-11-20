@@ -53,8 +53,11 @@ export function moveTimer(initial: State, action: TimerAction, now = Date.now())
   if (action.type === 'pause') return state;
   return { ...state, timer: start(timer, now) };
 }
+export function countdownLabel(milliseconds: number) {
+  const seconds=Math.max(0,Math.ceil(milliseconds/1000));
+  return [Math.floor(seconds/3600),Math.floor(seconds/60)%60,seconds%60].map((value)=>String(value).padStart(2,'0')).join(':');
+}
 export function timerLabel(milliseconds: number) {
   const seconds = Math.ceil(milliseconds / 1000);
   return [Math.floor(seconds / 60), seconds % 60].map((value) => String(value).padStart(2, '0')).join(':');
 }
-

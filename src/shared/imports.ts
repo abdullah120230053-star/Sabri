@@ -11,7 +11,7 @@ export const rowSchema = z.object({
   title:z.string().max(200), courseCode:z.string().max(30).default(''), instructor:z.string().max(120).default(''), room:z.string().max(160).default(''),
   description:z.string().max(8000).default(''), day:z.number().int().min(0).max(6).nullable().default(null), start:z.union([time,z.literal('')]).default(''), end:z.union([time,z.literal('')]).default(''), date:z.union([date,z.literal('')]).default(''),
   kind:z.enum(blockKinds).default('lecture'), eventType:z.enum(eventTypes).default('event'), recurrence:z.enum(['once','weekly','biweekly']).default('weekly'),
-  confidence:z.number().min(0).max(1), source:formatSchema, externalUid:z.string().max(1500).optional(), cancelled:z.boolean().default(false)
+  untilDate:date.optional(), exceptionDates:z.array(date).max(450).default([]), confidence:z.number().min(0).max(1), source:formatSchema, externalUid:z.string().max(1500).optional(), cancelled:z.boolean().default(false)
 });
 export type Row = z.infer<typeof rowSchema>;
 export type Format = z.infer<typeof formatSchema>;
@@ -48,7 +48,7 @@ export function importChanges(state: State, { rows, destination }: CommitImport,
     const course = active(state.courses).find((item) => (row.courseCode && item.code.replace(/\s/g,'').toLowerCase() === row.courseCode.replace(/\s/g,'').toLowerCase()) || item.name.toLowerCase() === row.title.toLowerCase());
     const fields = { ...existing,...(existing ? {} : stamp()),title:row.title,courseId:course?.id ?? existing?.courseId, location:row.room,externalUid };
     const built = destination === 'schedule'
-      ? scheduleSchema.safeParse({ ...fields,dayOfWeek:row.day ?? (row.date ? dayOf(row.date):null),start:row.start,end:row.end,onDate:row.recurrence === 'weekly' ? undefined : row.date || undefined,recurrence:row.recurrence,kind:row.kind,source:row.source,courseCode:row.courseCode,instructor:row.instructor,importConfidence:row.confidence,notes:row.description })
+      ? scheduleSchema.safeParse({ ...fields,dayOfWeek:row.day ?? (row.date ? dayOf(row.date):null),start:row.start,end:row.end,onDate:row.date || undefined,untilDate:row.untilDate,exceptionDates:row.exceptionDates,recurrence:row.recurrence,kind:row.kind,source:row.source,courseCode:row.courseCode,instructor:row.instructor,importConfidence:row.confidence,notes:row.description })
       : eventSchema.safeParse({ ...fields,date:row.date,time:row.start || undefined,endTime:row.end || undefined,type:row.eventType,source:row.source === 'ics' ? 'ics':'manual',description:row.description,reminders:existing && 'reminders' in existing ? existing.reminders : row.eventType === 'exam' ? [10080,1440]:[1440] });
     if (!built.success) { skipped++;continue; }
     const item = built.data;

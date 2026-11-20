@@ -1,0 +1,84 @@
+@import "../renderer/styles.css";
+body {
+  min-height: 100dvh;
+}
+main {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  max-width: 550px;
+  margin: auto;
+  padding: 13px 14px 78px;
+  min-height: 100dvh;
+}
+.phone-brand,
+.phone-top {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.phone-brand strong {
+  font-size: 23px;
+}
+.phone-brand span[lang="ar"] {
+  color: var(--primary);
+  font-size: 15px;
+  font-family: var(--font-arabic), sans-serif;
+}
+.phone-top {
+  justify-content: space-between;
+}
+.phone-top h1 {
+  font-size: 30px;
+}
+.phone-nav {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  display: grid;
+  justify-content: center;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  padding: 7px 7px calc(7px + env(safe-area-inset-bottom));
+}
+.phone-alert-banner {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  text-align: start;
+  border: 1px solid var(--border-focus);
+  border-radius: var(--radius-sm);
+  padding: 10px;
+  background: var(--secondary);
+  color: var(--primary);
+}
+.phone-alert-banner strong,
+.phone-alert-banner small,
+.phone-task-meta {
+  display: block;
+}
+.phone-alert-settings {
+  margin-bottom: 8px;
+}
+.phone-alert-settings button {
+  margin-bottom: 7px;
+}
+.phone-alert-row p {
+  line-height: 1.35;
+}
+.phone-nav .segments button {
+  padding-inline: 10px;
+  min-height: 38px;
+}
+.phone-timer {
+  text-align: center;
+  margin: 20px 0;
+}
+.phone-timer time {
+  font-size: 42px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.panel .stack .button {
+  justify-self: start;
+}

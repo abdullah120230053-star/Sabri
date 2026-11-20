@@ -22,6 +22,7 @@ export function blocksOn(blocks: RecordFor<'schedule'>[], key: string) {
   return blocks.filter((block) => {
     if (block.deletedAt) return false;
     if (block.recurrence === 'once') return block.onDate === key;
+    if ((block.onDate && key < block.onDate) || (block.untilDate && key > block.untilDate) || block.exceptionDates.includes(key)) return false;
     if (block.dayOfWeek !== dayOf(key)) return false;
     const monday = weekAt(key, 1);
     const odd = (Math.floor(dateSpan('1970-01-05', monday) / 7) + 2) % 2 === 1;
@@ -53,4 +54,3 @@ export function freeWindows(blocks: RecordFor<'schedule'>[], key: string, start:
   if (limit - cursor >= minimum) gaps.push({ start: minuteTime(cursor), end });
   return gaps;
 }
-

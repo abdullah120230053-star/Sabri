@@ -2,7 +2,7 @@ import { Notification } from 'electron';
 import { computePrayers } from '../shared/prayer';
 import { active, prayers, stamp, type State } from '../shared/schema';
 import { addDate, atTime, blocksOn, dayKey } from '../shared/time';
-import { moveTimer } from '../shared/timer';
+import { moveTimer,remaining } from '../shared/timer';
 import { Storage } from './storage';
 
 type Notice = Omit<State['notices'][number], keyof ReturnType<typeof stamp>>;
@@ -56,6 +56,10 @@ export function runScheduler(storage: Storage, show: () => void, refreshTray: ()
       for (const event of active(previous.calendar))
         for (const lead of event.reminders)
           due(atTime(event.date, event.time ?? '09:00', zone), lead, { title: translator.event, body: event.title, kind: 'event', reference: event.id + lead });
+      if (!quiet && settings.notifications.breakAfter>0 && previous.timer.phase==='focus' && previous.timer.status==='running') {
+        const goal=settings.notifications.breakAfter*60000,elapsed=previous.timer.durationMs-remaining(previous.timer,now);
+        if (elapsed>=goal && elapsed-(now-since)<goal) candidates.push({ title:translator.pause,body:'',kind:'break',reference:String(previous.timer.startedAt) });
+      }
       const ended = previous.timer.status === 'running' && (previous.timer.endsAt ?? Infinity) <= now;
       if (ended) candidates.push({ title: previous.timer.phase === 'focus' ? translator.focus : translator.break, body: '', kind: 'focus', reference: String(previous.timer.endsAt) });
       const newNotices = candidates.filter((item) => !previous.notices.some((notice) => notice.kind === item.kind && notice.reference === item.reference));
@@ -81,4 +85,3 @@ export function runScheduler(storage: Storage, show: () => void, refreshTray: ()
   }, 1000);
   return () => clearInterval(interval);
 }
-

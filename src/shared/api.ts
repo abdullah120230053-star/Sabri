@@ -1,7 +1,27 @@
-import type { State, Patch, TimerAction, Settings } from './schema';
+import type { State, Patch, TimerAction, Settings, RecordFor, Prayer } from './schema';
 import type { PrayerTimesMap } from './prayer';
 import type { CommitImport, Format, Mapping, Preview } from './imports';
+import type { PairInfo, SyncInfo } from './phone';
+import type { PrayerEdit } from './prayer-record';
 export interface SabriApi {
+  saveScheduleImage(data: Uint8Array): Promise<boolean>;
+  checkUpdates(): Promise<{ state:'unconfigured'|'current' } | { state:'available';version:string }>;
+  downloadUpdate(): Promise<boolean>;
+  installUpdate(): Promise<void>;
+  checkPrayer(input: PrayerEdit): Promise<State>;
+  verifyPrayer(key: string): Promise<{ name:Prayer; local:string; remote:string; minutes:number }[]>;
+  estimateLocation(): Promise<Settings['location']>;
+  importTheme(): Promise<RecordFor<'themes'> | null>;
+  exportTheme(theme: RecordFor<'themes'>): Promise<boolean>;
+  addSound(): Promise<{ id:string; name:string; file:string } | null>;
+  syncInfo(): Promise<SyncInfo>;
+  syncStart(options: { port:number;pin?:string;secure?:boolean }): Promise<SyncInfo>;
+  syncStop(): Promise<SyncInfo>;
+  exportPhoneCertificate(): Promise<{ fingerprint:string } | null>;
+  testPhoneAlert(): Promise<boolean>;
+  syncPair(): Promise<PairInfo>;
+  syncDevice(options: { id:string;name:string;canEdit:boolean }): Promise<SyncInfo>;
+  syncRevoke(id: string): Promise<SyncInfo>;
   timetable(input: { format: Format; text?: string; mapping?: Mapping }): Promise<Preview | null>;
   previewFeed(url: string): Promise<Preview>;
   pendingFeeds(): Promise<string[]>;

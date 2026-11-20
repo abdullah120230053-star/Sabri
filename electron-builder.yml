@@ -14,7 +14,7 @@ extraResources:
 win:
   target: [nsis, portable]
   icon: resources/icon.png
-  signExecutable: false
+
 mac:
   target: [dmg]
   icon: resources/icon.png

@@ -1,9 +1,10 @@
 import { randomUUID } from 'node:crypto';
-import { open, mkdir, readFile, rename, readdir, rm, stat } from 'node:fs/promises';
-import { join } from 'node:path';
+import { copyFile,open, mkdir, readFile, rename, readdir, rm, stat } from 'node:fs/promises';
+import { join,basename,extname } from 'node:path';
 import { z } from 'zod';
 import { applyPatch, emptyState, stateSchema, type State, type Patch } from '../shared/schema';
 import { addDate, dayKey } from '../shared/time';
+import { sanitizeNote } from './note-html';
 
 export const backupId = z.string().regex(/^\d{4}-\d{2}-\d{2}(?:-migration-\d+)?$/);
 const schemaHeader = z.object({ schemaVersion: z.number().int().nonnegative().default(0) });
@@ -108,6 +109,29 @@ export class Storage {
       await stat(join(this.backups, dir.name, 'state.json')).then(() => dir.name, () => '')));
     return available.filter(Boolean).sort().reverse();
   }
+  soundPath(file: string) {
+    return join(this.directory,'sounds',z.string().regex(/^[a-f0-9-]{36}\.(mp3|wav|ogg|m4a|flac)$/i).parse(file));
+  }
+  async addSound(path: string) {
+    const id=randomUUID(),extension=extname(path).toLowerCase(),file=id+extension;
+    const target=this.soundPath(file);
+    if ((await stat(path)).size>50_000_000) throw new Error('Audio file is too large.');
+    await mkdir(join(this.directory,'sounds'),{ recursive:true });
+    const staging=target+'.tmp';
+    try { await copyFile(path,staging);await rename(staging,target); }
+    finally { await rm(staging,{ force:true }); }
+    return { id,name:basename(path,extname(path)).slice(0,200),file };
+  }
+  async readPhoneKeys(key: 'phone-push'|'phone-tls') {
+    try { return JSON.parse(await readText(join(this.directory,key+'.json'),25000)) as unknown; }
+    catch (error) { if ((error as NodeJS.ErrnoException).code==='ENOENT') return undefined;throw error; }
+  }
+  writePhoneKeys(key: 'phone-push'|'phone-tls',value: unknown) { return atomicWrite(join(this.directory,key+'.json'),JSON.stringify(value)); }
+  async readDevices() {
+    try { return JSON.parse(await readText(join(this.directory,'devices.json'),250000)) as unknown; }
+    catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return []; throw error; }
+  }
+  writeDevices(devices: unknown) { return atomicWrite(join(this.directory,'devices.json'),JSON.stringify(devices)); }
   async readSecret(id: string) {
     const path = join(this.directory, 'calendar-secrets', z.uuid().parse(id) + '.enc');
     try { return await readText(path, 20000); }
@@ -128,7 +152,9 @@ export class Storage {
     const work = this.queue.then(async () => {
       const next = await change(this.data);
       if (next === this.data) return this.data;
-      const validated = stateSchema.parse({ ...next, revision: this.data.revision + 1 });
+      const before = new Map(this.data.notes.map((note) => [note.id,note.content]));
+      const notes = next.notes===this.data.notes ? next.notes : next.notes.map((note) => before.get(note.id)===note.content ? note : { ...note,content:sanitizeNote(note.content) });
+      const validated = stateSchema.parse({ ...next, notes, revision: this.data.revision + 1 });
       const serialized = JSON.stringify(validated);
       if (Buffer.byteLength(serialized) > MAX_BYTES) throw new Error('Data exceeds the storage limit.');
       if (preflight) await this.writeBackup(dayKey() + '-migration-' + Date.now(), JSON.stringify(this.data));
@@ -145,4 +171,3 @@ export class Storage {
   }
   async drain() { await this.queue; }
 }
-

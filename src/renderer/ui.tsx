@@ -9,7 +9,7 @@ export function Button({ children, variant = 'secondary', icon: Icon, className 
 export function IconButton({ label, icon: Icon, className = '', ...props }: ButtonHTMLAttributes<HTMLButtonElement> & { label: string; icon: LucideIcon }) {
   return <button type="button" className={'icon-button ' + className} aria-label={label} title={label} {...props}><Icon size={18} aria-hidden="true" /></button>;
 }
-export function Panel({ title, icon: Icon, tone = 'lilac', action, children, className = '', ...props }: { title: string; icon?: LucideIcon; tone?: string; action?: ReactNode; children: ReactNode; className?: string; style?: CSSProperties }) {
+export function Panel({ title, icon: Icon, tone = 'lilac', action, children, className = '', ...props }: { title: string; icon?: LucideIcon; tone?: string; action?: ReactNode; children?: ReactNode; className?: string; style?: CSSProperties }) {
   return <section className={'panel ' + className} {...props}><div className="panel-head"><div className="panel-label">{Icon && <span className={'tile tile-' + tone}><Icon size={17}/></span>}<h2>{title}</h2></div>{action}</div>{children}</section>;
 }
 export function PageHead({ title, description, action }: { title: string; description?: string; action?: ReactNode }) {
@@ -65,4 +65,3 @@ export function useNow(milliseconds = 1000) {
 }
 export const titleCase = (value: string) => value.charAt(0).toUpperCase() + value.slice(1).replaceAll('_', ' ');
 export const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-

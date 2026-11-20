@@ -5,6 +5,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { active, blockKinds, scheduleSchema, prayers, type RecordFor } from '../shared/schema';
 import { addDate, blocksOn, conflicts, dayKey, dayOf, freeWindows, friendlyDate, localClock, minuteTime, minutesAt, weekAt } from '../shared/time';
 import { computePrayers } from '../shared/prayer';
+import { scheduleImage } from './schedule-image';
 import { fresh, remove, save, useSabri, tell } from './store';
 import { Button, daysOfWeek, Empty, Field, FormActions, Modal, PageHead, Pager, Panel, Segments, titleCase, useNow } from './ui';
 
@@ -70,6 +71,7 @@ export function SchedulePage() {
   const [overlay,setOverlay] = useState(false);
   const [gapSize,setGapSize] = useState(45);
   const [showFree,setShowFree] = useState(false);
+  const [studyCourse,setStudyCourse] = useState('');
   const [preview,setPreview] = useState<Slot>();
   const start = minutesAt(settings.dayStart), end = Math.max(start + 30,minutesAt(settings.dayEnd));
   const range = end - start, height = Math.max(560,range * 0.86);
@@ -117,8 +119,8 @@ export function SchedulePage() {
     <PageHead title={t('Schedule')} description={t('Plan your classes and find time to study.')} action={<><Button icon={Download} onClick={() => nav('/import')}>{t('Import timetable')}</Button><Button variant="primary" icon={Plus} onClick={() => openAt(key)}>{t('Add class')}</Button></>}/>
     <div className="toolbar"><Segments label={t('Schedule')} value={view} onChange={(value) => setView(value)} options={[{ value:'week',label:t('Weekly grid') },{ value:'day',label:t('Day agenda') },{ value:'list',label:t('List') }]}/>
       <div className="actions"><Button onClick={() => setKey(today)}>{t('Today')}</Button><Pager back={() => setKey(addDate(key,view === 'week' ? -7 : -1))} forward={() => setKey(addDate(key,view === 'week' ? 7 : 1))}>{friendlyDate(view === 'week' ? from : key,settings.language,{ month:'short',day:'numeric',year:'numeric' })}</Pager></div></div>
-    <div className="toolbar"><div className="actions"><label className="check-label"><input type="checkbox" checked={overlay} onChange={(e) => setOverlay(e.target.checked)}/>{t('Prayer overlay')}</label><Button onClick={() => setShowFree(!showFree)}>{t('Find study time')}</Button></div><Button onClick={() => { void window.sabri.print(); }}>{t('Print / PDF')}</Button><Button onClick={() => { void window.sabri.exportCalendar('schedule').catch(() => tell(t('Could not export calendar'))); }}>{t('Export ICS')}</Button><Button onClick={() => { void window.sabri.exportCalendar('csv').catch(() => tell(t('Could not export calendar'))); }}>{t('Export CSV')}</Button></div>
-    {showFree && <Panel title={t('Free time')} icon={Clock3}><div className="actions"><Field label={t('Minimum minutes')}><input type="number" min={15} max={240} value={gapSize} onChange={(e) => setGapSize(Math.max(15,+e.target.value))}/></Field>{freeWindows(blocks,key,settings.dayStart,settings.dayEnd,gapSize).map((gap) => <Button key={gap.start} onClick={() => setDraft({ ...gap,dayOfWeek:dayOf(key),onDate:key,recurrence:'once',kind:'study',title:t('Study block') })}>{gap.start}–{gap.end}</Button>)}</div></Panel>}
+    <div className="toolbar"><div className="actions"><label className="check-label"><input type="checkbox" checked={overlay} onChange={(e) => setOverlay(e.target.checked)}/>{t('Prayer overlay')}</label><Button onClick={() => setShowFree(!showFree)}>{t('Find study time')}</Button></div><Button onClick={() => { void window.sabri.print(); }}>{t('Print / PDF')}</Button><Button onClick={() => { void window.sabri.exportCalendar('schedule').catch(() => tell(t('Could not export calendar'))); }}>{t('Export ICS')}</Button><Button onClick={() => { void window.sabri.exportCalendar('csv').catch(() => tell(t('Could not export calendar'))); }}>{t('Export CSV')}</Button><Button onClick={()=>{void scheduleImage(useSabri.getState().data,from).then(window.sabri.saveScheduleImage).catch(()=>tell(t('Could not export schedule image')));}}>{t('Export PNG')}</Button></div>
+    {showFree && <Panel title={t('Free time')} icon={Clock3}><div className="actions"><Field label={t('Minimum minutes')}><input type="number" min={15} max={240} value={gapSize} onChange={(e) => setGapSize(Math.max(15,+e.target.value))}/></Field><Field label={t('Study course')}><select value={studyCourse} onChange={(e)=>setStudyCourse(e.target.value)}><option value="">{t('No course')}</option>{active(courses).map((course)=><option key={course.id} value={course.id}>{course.name}</option>)}</select></Field>{freeWindows(blocks,key,settings.dayStart,settings.dayEnd,gapSize).map((gap) => <Button key={gap.start} onClick={() => setDraft({ ...gap,dayOfWeek:dayOf(key),onDate:key,recurrence:'once',kind:'study',courseId:studyCourse || undefined,title:active(courses).find((course)=>course.id===studyCourse)?.name ?? t('Study block') })}>{gap.start}–{gap.end}</Button>)}</div></Panel>}
     {view === 'week' ? <section className="panel schedule-panel"><div className="timetable" style={{ '--day-count':days.length } as CSSProperties}>
       <div className="schedule-day"><Clock3 size={17}/></div>{days.map((date) => <div key={date} className={'schedule-day '+(today === date ? 'is-today':'')}><span>{friendlyDate(date,settings.language,{ weekday:'short' })}</span><strong>{friendlyDate(date,settings.language,{ day:'numeric' })}</strong></div>)}
       <div className="schedule-axis" style={{ height }}>{Array.from({ length:Math.ceil(range/60) },(_,i) => <span key={i} style={{ top:i*60/range*100+'%' }}>{localClock(minuteTime(start+i*60),settings)}</span>)}</div>
@@ -147,5 +149,3 @@ export function SchedulePage() {
     {(draft || params.has('add')) && <SlotEditor draft={draft ?? { dayOfWeek:dayOf(key),start:'09:00',end:'10:00' }} close={() => { setDraft(undefined); if (params.has('add')) setParams({}); }}/>}
   </>;
 }
-
-

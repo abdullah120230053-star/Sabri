@@ -8,6 +8,8 @@ import { addDate, dayKey, dayOf } from '../shared/time';
 import { changeSettings, fresh, patch, tell, useSabri } from './store';
 import { themes } from './themes';
 import { artwork } from './theme-art';
+import { ThemeEditor } from './theme-editor';
+import { Updates } from './updates';
 import { Button, daysOfWeek, Field, FormActions, Modal, PageHead, Panel, titleCase } from './ui';
 
 export function CityField({ value,onChange }: { value: Settings['location']; onChange(location: Settings['location']): void }) {
@@ -69,6 +71,7 @@ export function SettingsPage() {
         <div className="form-grid"><Field label={t('Language')}><select value={settings.language} onChange={(e) => { void changeSettings({ language:e.target.value === 'ar' ? 'ar':'en' }); }}><option value="en">{t('English')}</option><option value="ar">{t('Arabic')}</option></select></Field>
         <Field label={t('Time format')}><select value={settings.timeFormat} onChange={(event) => { void changeSettings({ timeFormat:event.target.value === '24h' ? '24h':'12h' }); }}><option value="12h">12h</option><option value="24h">24h</option></select></Field></div>
       </Panel>
+      <ThemeEditor/>
       <Panel title={t('Location')} icon={MapPin} tone="mint">
         <form className="form-grid" onSubmit={async (e) => { e.preventDefault(); if (await changeSettings({ location })) tell(t('Saved')); }}>
           <CityField value={location} onChange={setLocation}/>
@@ -77,6 +80,8 @@ export function SettingsPage() {
           <Field label={t('Longitude')}><input required type="number" min={-180} max={180} step="any" value={location.longitude} onChange={(e) => setLocation({ ...location,longitude:+e.target.value })}/></Field>
           <Field label={t('Time zone')} wide><input required list="timezones" value={location.timezone} onChange={(e) => setLocation({ ...location,timezone:e.target.value })}/><datalist id="timezones">{Intl.supportedValuesOf('timeZone').map((zone) => <option key={zone} value={zone}/>)}</datalist></Field>
           <Button type="submit" variant="primary">{t('Save location')}</Button>
+          <Button onClick={()=>{void window.sabri.estimateLocation().then(setLocation).catch(()=>tell(t('Could not estimate your location.')));}}>{t('Estimate from IP')}</Button>
+          <small className="wide">{t('The IP estimate contacts ipapi.co and can be adjusted before saving.')}</small>
         </form>
       </Panel>
       <Panel title={t('Prayer times')} icon={Globe} tone="mint">
@@ -109,7 +114,8 @@ export function SettingsPage() {
       </div></Panel>
       <Panel title={t('Notifications')} icon={Bell} tone="orange"><div className="form-grid">
         {([['enabled','Notifications enabled'],['prayerAt','Notify at prayer time'],['habits','Habit reminders'],['examMode','Exam mode']] as const).map(([key,label]) => <label className="check-label" key={key}><input type="checkbox" checked={settings.notifications[key]} onChange={(e) => notification({ [key]:e.target.checked })}/>{t(label)}</label>)}
-        {([['prayerLead','Prayer reminder (minutes)',120],['classLead','Class reminder (minutes)',1440],['taskLead','Task reminder (minutes)',1440]] as const).map(([key,label,max]) => <Field key={key} label={t(label)}><input key={settings.notifications[key]} type="number" min={0} max={max} defaultValue={settings.notifications[key]} onBlur={(e) => { if (e.target.checkValidity()) notification({ [key]:+e.target.value }); }}/></Field>)}
+        <Field label={t('Daily goal reminder')}><input type="time" value={settings.notifications.daysGoal} onChange={(e)=>{ if (e.target.value) notification({ daysGoal:e.target.value }); }}/></Field>
+        {([['prayerLead','Prayer reminder (minutes)',120],['classLead','Class reminder (minutes)',1440],['taskLead','Task reminder (minutes)',1440],['breakAfter','Study break after (minutes)',720]] as const).map(([key,label,max]) => <Field key={key} label={t(label)}><input key={settings.notifications[key]} type="number" min={0} max={max} defaultValue={settings.notifications[key]} onBlur={(e) => { if (e.target.checkValidity()) notification({ [key]:+e.target.value }); }}/></Field>)}
       </div></Panel>
       <Panel title={t('Data and backups')} icon={Database} tone="blue">
         <p className="muted">{t('Your planner data is stored on this computer.')}</p>
@@ -123,6 +129,7 @@ export function SettingsPage() {
         <div className="check-grid"><label className="check-label"><input type="checkbox" checked={settings.hmBar} onChange={(e) => { void changeSettings({ hmBar:e.target.checked }); }}/>{t('Show timer and next prayer in HM-Bar')}</label>
         <label className="check-label"><input type="checkbox" checked={settings.themeMotion} onChange={(e) => { void changeSettings({ themeMotion:e.target.checked }); }}/>{t('Animate theme artwork')}</label></div>
         <div className="actions"><Button icon={Sparkles} onClick={() => setDemo(true)}>{t('Use sample data')}</Button><Button onClick={() => setOnboard(true)}>{t('Run setup')}</Button><Button onClick={() => nav('/import')}>{t('University data')}</Button></div>
+        <Updates/>
       </Panel>
     </div>
     {onboard && <Onboarding close={() => setOnboard(false)}/>}
@@ -130,4 +137,3 @@ export function SettingsPage() {
     {restore && <Modal title={t('Restore backup')} close={() => setRestore(undefined)}><p>{t('Restore {{date}} and keep a backup of the current planner.',{ date:restore })}</p><form onSubmit={async (e) => { e.preventDefault();try { await window.sabri.restoreBackup(restore);tell(t('Saved'));setRestore(undefined); } catch { tell(t('Could not restore backup')); } }}><FormActions close={() => setRestore(undefined)} label={t('Restore')}/></form></Modal>}
   </>;
 }
-

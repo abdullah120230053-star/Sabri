@@ -13,9 +13,16 @@ function eventType(title: string): Row['eventType'] {
   if (/\b(assignment|homework|submission)\b|واجب|تكليف/i.test(title)) return 'assignment';
   return 'event';
 }
-function toLocal(value: InstanceType<typeof ICAL.Time>,zone: string) {
-  if (value.isDate || value.zone.tzid === 'floating') return { date:value.toString().slice(0,10), time:value.isDate ? '' : value.toString().slice(11,16) };
-  return { date:formatInTimeZone(value.toJSDate(),zone,'yyyy-MM-dd'),time:formatInTimeZone(value.toJSDate(),zone,'HH:mm') };
+function toLocal(value: InstanceType<typeof ICAL.Time>,zone: string,sourceZone?: unknown) {
+  const date=value.toString().slice(0,10),time=value.toString().slice(11,16);
+  if (value.isDate) return { date,time:'' };
+  if (value.zone.tzid==='floating' && typeof sourceZone!=='string') return { date,time };
+  let instant=value.toJSDate();
+  if (value.zone.tzid==='floating' && typeof sourceZone==='string') {
+    instant=atTime(date,time,sourceZone);
+    if (!Number.isFinite(+instant)) return { date,time };
+  }
+  return { date:formatInTimeZone(instant,zone,'yyyy-MM-dd'),time:formatInTimeZone(instant,zone,'HH:mm') };
 }
 export function parseIcs(raw: string,zone: string): Preview {
   if (!/^\s*BEGIN:VCALENDAR\s*$/im.test(raw)) throw new Error('The file is not an iCalendar calendar.');
@@ -32,13 +39,38 @@ export function parseIcs(raw: string,zone: string): Preview {
         const event = new ICAL.Event(component);
         const title = (event.summary || (component.getFirstPropertyValue('status') === 'CANCELLED' ? 'Cancelled':'')).trim().slice(0,200);
         if (!event.uid || !event.startDate || !title) { skipped++;continue; }
-        const start = toLocal(event.startDate,zone),end = toLocal(event.endDate,zone);
+        const sourceZone=component.getFirstProperty('dtstart')?.getParameter('tzid');
+        const start = toLocal(event.startDate,zone,sourceZone),end = toLocal(event.endDate,zone,sourceZone);
         const rule = component.getFirstPropertyValue('rrule');
-        const recurrence = rule instanceof ICAL.Recur && rule.freq === 'WEEKLY' && rule.interval <= 2 && !rule.count && !rule.until ? (rule.interval===2 ? 'biweekly':'weekly') : 'once';
+        const recurring = rule instanceof ICAL.Recur && rule.freq === 'WEEKLY' && rule.interval <= 2 && !event.recurrenceId;
+        const recurrence = recurring ? (rule.interval===2 ? 'biweekly':'weekly') : 'once';
+        const explicitExceptions=component.getAllProperties('exdate').flatMap((property)=>property.getValues()).filter((value)=>value instanceof ICAL.Time).map((value)=>toLocal(value,zone,sourceZone).date);
+        let occurrences=[start.date];
+        if (recurring && (rule.count || rule.until || rule.getComponent('BYDAY').length>1)) {
+          const iterator=event.iterator();
+          occurrences=[];
+          const finite=!!(rule.count || rule.until);
+          for (let index=0;index<(finite?450:14);index++) {
+            const current=iterator.next();
+            if (!current) break;
+            occurrences.push(toLocal(current,zone,sourceZone).date);
+          }
+        }
         const type = eventType(title);
-        rows.push(rowSchema.parse({ title,room:(event.location || '').slice(0,160),description:(event.description || '').slice(0,8000),
-          day:dayOf(start.date),date:start.date,start:start.time,end:end.date === start.date ? end.time : '',kind:type === 'exam' ? 'exam' : /\blab\b/i.test(title) ? 'lab':'lecture',eventType:type,source:'ics',confidence:1,
-          recurrence,externalUid:digest(event.uid+(event.recurrenceId ? '\n'+event.recurrenceId.toString():'')),cancelled:component.getFirstPropertyValue('status') === 'CANCELLED' }));
+        const grouped = Map.groupBy(occurrences,dayOf);
+        for (const [day,dates] of grouped) {
+          if (rows.length>=1500) { skipped++;break; }
+          const firstDate=dates[0]!;
+          const untilDate=recurring && (rule.count || rule.until) ? dates.at(-1):undefined;
+          const implicitExceptions:string[]=[];
+          if (untilDate && recurring) {
+            const allowed=new Set(dates);
+            for (let value=firstDate;value<untilDate;value=addDate(value,rule.interval*7)) if (!allowed.has(value)) implicitExceptions.push(value);
+          }
+          rows.push(rowSchema.parse({ title,room:(event.location || '').slice(0,160),description:(event.description || '').slice(0,8000),
+          day,date:firstDate,start:start.time,end:end.date === start.date ? end.time : '',kind:type === 'exam' ? 'exam' : /\blab\b/i.test(title) ? 'lab':'lecture',eventType:type,source:'ics',confidence:1,
+          recurrence,untilDate,exceptionDates:[...new Set([...explicitExceptions,...implicitExceptions])].slice(0,450),externalUid:digest(event.uid+(event.recurrenceId ? '\n'+event.recurrenceId.toString():day===dayOf(start.date)?'':'\nday:'+day)),cancelled:component.getFirstPropertyValue('status') === 'CANCELLED' }));
+        }
       } catch { skipped++; }
     }
     return { rows,columns:[],skipped };
@@ -55,7 +87,7 @@ export function exportIcs(state: State,scope: 'calendar'|'schedule',today = dayK
   calendar.updatePropertyWithValue('prodid','-//Sabri//Study planner//EN');
   calendar.updatePropertyWithValue('version','2.0');
   const zone = new ICAL.Timezone({ tzid:timezone });
-  const create = (item: { id:string;title:string;location:string;date:string;start?:string;end?:string;notes?:string;recurrence?:string }) => {
+  const create = (item: { id:string;title:string;location:string;date:string;start?:string;end?:string;notes?:string;recurrence?:string;untilDate?:string;exceptionDates?:string[] }) => {
     const event = new ICAL.Event();
     event.uid = item.id+'@sabri.app';
     event.summary = item.title;
@@ -69,7 +101,16 @@ export function exportIcs(state: State,scope: 'calendar'|'schedule',today = dayK
       };
       event.startDate = local(item.start);
       if (item.end) event.endDate = local(item.end);
-      event.component.addPropertyWithValue('rrule',ICAL.Recur.fromString(item.recurrence === 'biweekly' ? 'FREQ=WEEKLY;INTERVAL=2':'FREQ=WEEKLY'));
+      const rule=ICAL.Recur.fromString(item.recurrence === 'biweekly' ? 'FREQ=WEEKLY;INTERVAL=2':'FREQ=WEEKLY');
+      if (item.untilDate) rule.until=ICAL.Time.fromJSDate(atTime(item.untilDate,'23:59',timezone),true);
+      event.component.addPropertyWithValue('rrule',rule);
+      for (const date of item.exceptionDates ?? []) {
+        if (date<item.date || !item.start) continue;
+        const exclusion=ICAL.Time.fromDateTimeString(date+'T'+item.start+':00');
+        exclusion.zone=zone;
+        const property=event.component.addPropertyWithValue('exdate',exclusion);
+        property.setParameter('tzid',timezone);
+      }
     } else {
       event.startDate = item.start ? ICAL.Time.fromJSDate(atTime(item.date,item.start,timezone),true):ICAL.Time.fromDateString(item.date);
       if (item.end) event.endDate = ICAL.Time.fromJSDate(atTime(item.date,item.end,timezone),true);
@@ -84,4 +125,3 @@ export function exportIcs(state: State,scope: 'calendar'|'schedule',today = dayK
   }
   return calendar.toString()+'\r\n';
 }
-

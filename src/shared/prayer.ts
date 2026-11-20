@@ -13,7 +13,23 @@ export const cities = [
   ['Port Said', 'بورسعيد', 31.2653, 32.3019], ['Qena', 'قنا', 26.1551, 32.7160], ['Shebin El Kom', 'شبين الكوم', 30.5549, 31.0105], ['Sohag', 'سوهاج', 26.5591, 31.6957], ['Suez', 'السويس', 29.9737, 32.5263], ['Tanta', 'طنطا', 30.7865, 31.0004], ['Zagazig', 'الزقازيق', 30.5765, 31.5041]
 ] as const;
 
-export function computePrayers(key: string, settings: Settings): PrayerTimesMap {
+const monthCache=new Map<string,Map<string,PrayerTimesMap>>();
+export function computePrayers(key: string,settings: Settings): PrayerTimesMap {
+  const { location,prayer }=settings;
+  const id=JSON.stringify([key.slice(0,7),location.latitude,location.longitude,location.timezone,prayer.method,prayer.madhab,prayer.highLatitude,prayer.offsets]);
+  let month=monthCache.get(id);
+  if (!month) {
+    if (monthCache.size>=12) monthCache.delete(monthCache.keys().next().value!);
+    month=new Map();
+    monthCache.set(id,month);
+  }
+  const existing=month.get(key);
+  if (existing) return existing;
+  const result=calculatePrayers(key,settings);
+  month.set(key,result);
+  return result;
+}
+function calculatePrayers(key: string, settings: Settings): PrayerTimesMap {
   const { location, prayer } = settings;
   const civilDate = calendarDate(key);
   const options = CalculationMethod[prayer.method]();
@@ -40,4 +56,3 @@ export function nextPrayer(now: Date, settings: Settings, timesFor = computePray
   }
   return null;
 }
-

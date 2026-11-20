@@ -73,13 +73,15 @@ export const settingsSchema = z.object({
   hmBar: z.boolean().default(false),
   themeMotion: z.boolean().default(true),
   musicPauseAtPrayer: z.boolean().default(true),
+  soundVolumes: z.record(z.string().max(40),z.number().min(0).max(1)).default({}),
   musicLinkFocus: z.boolean().default(false),
   layout: z.string().max(80).default('overview'),
   layoutPerTheme: z.boolean().default(false),
+  themeLayouts: z.record(z.string().max(80),z.string().max(80)).default({}),
 });
 export const gradeComponentSchema = z.object({ id, name: title, weight: z.number().min(0).max(100), maxScore: z.number().positive().max(100000), earnedScore: z.number().min(0).max(100000).optional(), dueDate: date.optional() });
 export const courseSchema = z.object({ ...base, name: title, code: z.string().max(30), instructor: z.string().max(120), creditHours: z.number().min(0).max(100), color, semester: z.string().max(80), gradeComponents: z.array(gradeComponentSchema).max(100), finalGrade: z.string().max(20), targetGrade: z.number().min(0).max(100).default(85), absenceLimit: z.number().int().min(0).max(100), absences: z.number().int().min(0).max(1000), order: z.number().default(0) });
-export const scheduleFields = z.object({ title, courseId: id.optional(), courseCode: z.string().max(30).default(''), instructor: z.string().max(120).default(''), location: z.string().max(160).default(''), kind: z.enum(blockKinds).default('lecture'), dayOfWeek: weekday, start: time, end: time, recurrence: z.enum(['weekly', 'biweekly', 'once']).default('weekly'), weeks: z.enum(['all', 'odd', 'even']).default('all'), onDate: date.optional(), color: color.optional(), notes: z.string().max(3000).default(''), source: z.enum(['manual', 'pdf', 'text', 'html', 'ics', 'csv']).default('manual'), externalUid: z.string().max(1500).optional(), importConfidence: z.number().min(0).max(1).optional() });
+export const scheduleFields = z.object({ title, courseId: id.optional(), courseCode: z.string().max(30).default(''), instructor: z.string().max(120).default(''), location: z.string().max(160).default(''), kind: z.enum(blockKinds).default('lecture'), dayOfWeek: weekday, start: time, end: time, recurrence: z.enum(['weekly', 'biweekly', 'once']).default('weekly'), weeks: z.enum(['all', 'odd', 'even']).default('all'), onDate: date.optional(), untilDate:date.optional(), exceptionDates:z.array(date).max(450).default([]), color: color.optional(), notes: z.string().max(3000).default(''), source: z.enum(['manual', 'pdf', 'text', 'html', 'ics', 'csv']).default('manual'), externalUid: z.string().max(1500).optional(), importConfidence: z.number().min(0).max(1).optional() });
 export const scheduleSchema = scheduleFields.extend(base).refine((block) => block.start < block.end && (block.recurrence !== 'once' || !!block.onDate), { error: 'Check the date and time range.' });
 
 export const taskSchema = z.object({
@@ -110,7 +112,7 @@ export const quoteSchema = z.object({ ...base, text: z.string().trim().min(1).ma
 export const soundSchema = z.object({ ...base, name: title, file: z.string().regex(/^[a-f0-9-]{36}\.(mp3|wav|ogg|m4a|flac)$/i), volume: z.number().min(0).max(1) });
 export const widgetIds = ['schedule', 'focus', 'prayers', 'tasks', 'quote', 'upcoming', 'stats', 'calendar', 'music', 'habits', 'goal', 'notes', 'clock'] as const;
 export const layoutSchema = z.object({ ...base, name: title, widgets: z.array(z.object({ i: z.enum(widgetIds), x: z.number().int().min(0).max(12), y: z.number().int().min(0).max(200), w: z.number().int().min(1).max(4), h: z.number().int().min(1).max(12) })).max(20) });
-export const themeSchema = z.object({ ...base, name: title, parent: z.string().max(80), colors: z.record(z.string().regex(/^[a-z-]+$/), color), radius: z.number().int().min(0).max(32), font: z.enum(['inter', 'manrope', 'arabic']), shadow: z.enum(['none', 'soft', 'strong']), pattern: z.enum(['none', 'dots', 'grid', 'diagonal']) });
+export const themeSchema = z.object({ ...base, name: title, parent: z.string().max(80), colors: z.record(z.string().regex(/^[a-z][a-z0-9-]*$/), color), radius: z.number().int().min(0).max(32), font: z.enum(['inter', 'manrope', 'arabic']), shadow: z.enum(['none', 'soft', 'strong']), pattern: z.enum(['none', 'dots', 'grid', 'diagonal']) });
 export const noticeSchema = z.object({ ...base, title, body: z.string().max(500), kind: z.string().max(40), reference: z.string().max(500) });
 export const collections = {
   schedule: scheduleSchema, courses: courseSchema, tasks: taskSchema, prayerDays: prayerDaySchema, sessions: sessionSchema,
@@ -119,6 +121,7 @@ export const collections = {
 };
 export const stateSchema = z.object({
   schemaVersion: z.literal(1).default(1), revision: z.number().int().nonnegative().default(0),
+  phoneReceipts: z.array(id).max(2500).default([]),
   settings: settingsSchema.prefault({}), timer: timerSchema.prefault({}), favorites: z.array(z.string().max(200)).max(5000).default([]),
   schedule: z.array(scheduleSchema).default([]), courses: z.array(courseSchema).default([]), tasks: z.array(taskSchema).default([]),
   prayerDays: z.array(prayerDaySchema).default([]), sessions: z.array(sessionSchema).default([]), calendar: z.array(eventSchema).default([]),
@@ -164,5 +167,3 @@ export function applyPatch(state: State, patch: Patch, at?: string): State {
   }
   return next;
 }
-
-

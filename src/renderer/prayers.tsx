@@ -3,10 +3,12 @@ import { Check, ChevronRight, Clock3, MapPin, Moon, Plus, Sunrise } from 'lucide
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { computePrayers, nextPrayer } from '../shared/prayer';
-import { active, prayerDaySchema, prayers, prayerStatuses, type Prayer, type RecordFor } from '../shared/schema';
+import { active, prayers, prayerStatuses, type Prayer, type RecordFor } from '../shared/schema';
 import { addDate, clock, dayKey, dayOf, friendlyDate } from '../shared/time';
-import { timerLabel } from '../shared/timer';
-import { changeSettings, fresh, save, useSabri } from './store';
+import { countdownLabel } from '../shared/timer';
+import { changeSettings, tell, useSabri } from './store';
+import type { PrayerEdit } from '../shared/prayer-record';
+import type { SabriApi } from '../shared/api';
 import { Button, Field, PageHead, Pager, Panel, titleCase, useNow } from './ui';
 
 export const filledPrayer = (day: RecordFor<'prayerDays'> | undefined) => prayers.filter((name) => day?.status[name] === 'done' || day?.status[name] === 'late').length;
@@ -18,14 +20,12 @@ export function PrayerChecklist({ compact = false, date }: { compact?: boolean; 
   const times = useMemo(() => computePrayers(key,settings),[key,settings]);
   const upcoming = useMemo(() => nextPrayer(now,settings),[now,settings]);
   const stored = active(prayerDays).find((item) => item.date === key);
-  const edit = (update: Partial<RecordFor<'prayerDays'>>) => {
-    const current = useSabri.getState().data.prayerDays.find((item) => !item.deletedAt && item.date === key);
-    const base = current ?? prayerDaySchema.parse({ ...fresh(),date:key,status:{} });
-    void save('prayerDays',{ ...base,...update,status:{ ...base.status,...update.status },congregation:{ ...base.congregation,...update.congregation },sunnah:{ ...base.sunnah,...update.sunnah } });
+  const edit = (fields: PrayerEdit['fields']) => {
+    void window.sabri.checkPrayer({ date:key,fields }).then(useSabri.getState().receive).catch(()=>tell(t('Could not save changes')));
   };
   const completed = filledPrayer(stored);
   return <Panel title={t(compact ? 'Prayer times':'Prayer checklist')} icon={Moon} tone="mint" action={compact ? <Button variant="ghost" onClick={() => nav('/prayers')}>{t('View prayers')} <ChevronRight className="dir-arrow" size={15}/></Button> : <span className="pill"><MapPin size={13}/>{settings.location.city}</span>} className="prayer-card">
-    {upcoming && key === today && <div className="next-prayer"><div><small>{t('Next prayer')}</small><strong>{t(prayerName(upcoming.name,upcoming.key))} <span>· {clock(upcoming.time,settings)}</span></strong></div><time dir="ltr">{timerLabel(+new Date(upcoming.time) - +now)}</time></div>}
+    {upcoming && key === today && <div className="next-prayer"><div><small>{t('Next prayer')}</small><strong>{t(prayerName(upcoming.name,upcoming.key))} <span>· {clock(upcoming.time,settings)}</span></strong></div><time dir="ltr">{countdownLabel(+new Date(upcoming.time) - +now)}</time></div>}
     <div className="prayer-list">{prayers.map((name) => {
       const status = stored?.status[name] ?? 'pending';
       const checked = status === 'done' || status === 'late';
@@ -45,8 +45,11 @@ export function PrayerChecklist({ compact = false, date }: { compact?: boolean; 
 export function PrayersPage() {
   const { t } = useTranslation(),nav = useNavigate();
   const { settings,prayerDays } = useSabri((s) => s.data);
-  const today = dayKey(useNow(60000),settings.location.timezone);
+  const now=useNow(settings.prayer.ramadan ? 1000:60000);
+  const today = dayKey(now,settings.location.timezone);
   const [key,setKey] = useState(today);
+  const [verify,setVerify] = useState<Awaited<ReturnType<SabriApi['verifyPrayer']>>>();
+  const [busy,setBusy] = useState(false);
   const history = active(prayerDays);
   let streak = 0;
   for (let cursor = filledPrayer(history.find((day) => day.date === today)) === 5 ? today : addDate(today,-1); filledPrayer(history.find((day) => day.date === cursor)) === 5; cursor = addDate(cursor,-1)) streak++;
@@ -58,8 +61,11 @@ export function PrayersPage() {
         return <button className={'heat-cell heat-'+count} key={date} title={date+' · '+count+'/5'} aria-label={date+' · '+count+'/5'} onClick={() => setKey(date)}/>;
       })}</div></Panel>
       <Panel title={t('Qada counter')} icon={Clock3}><div className="toolbar"><strong className="metric">{settings.prayer.qada}</strong><div className="actions"><Button disabled={settings.prayer.qada < 1} onClick={() => { void changeSettings({ prayer:{ ...settings.prayer,qada:settings.prayer.qada-1 } }); }}>{t('Mark one prayed')}</Button><Button icon={Plus} onClick={() => { void changeSettings({ prayer:{ ...settings.prayer,qada:settings.prayer.qada+1 } }); }}>{t('Add')}</Button></div></div></Panel>
-      {settings.prayer.ramadan && <Panel title={t('Ramadan')} icon={Moon}><div className="toolbar">{(['fajr','maghrib'] as const).map((name) => { const value = computePrayers(key,settings)[name]; return <Field key={name} label={t(name === 'fajr' ? 'Suhoor ends':'Iftar')}><strong>{value ? clock(value,settings):'–'}</strong></Field>; })}</div></Panel>}
+      {settings.prayer.ramadan && <Panel title={t('Ramadan')} icon={Moon}><div className="toolbar">{(['fajr','maghrib'] as const).map((name) => { const value = computePrayers(key,settings)[name]; return <Field key={name} label={t(name === 'fajr' ? 'Suhoor ends':'Iftar')}><strong>{value ? clock(value,settings):'–'}</strong>{key===today && Date.parse(value)>+now && <time dir="ltr">{countdownLabel(Date.parse(value)-+now)}</time>}</Field>; })}</div></Panel>}
+      <Panel title={t('Compare calculation')} icon={Clock3}><p className="muted">{t('Comparing sends the selected date and saved coordinates to AlAdhan.')}</p>
+      <Button onClick={async()=>{ setBusy(true);try { setVerify(await window.sabri.verifyPrayer(key)); } catch { tell(t('AlAdhan comparison unavailable')); } finally {setBusy(false);} }} disabled={busy}>{t('Verify with AlAdhan')}</Button>
+      {verify?.map((item)=><div className="data-row" key={item.name}><strong className="grow">{t(prayerName(item.name,key))}</strong><small>{clock(item.local,settings)} / {clock(item.remote,settings)}</small><span className="pill">{item.minutes>0?'+':''}{item.minutes} {t('min')}</span></div>)}
+      </Panel>
     </div></div>
   </>;
 }
-

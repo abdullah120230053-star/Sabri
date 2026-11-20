@@ -272,6 +272,39 @@ textarea { resize:vertical; }
 .mini { padding:12px; }
 .mini .time-dial { max-width:165px; }
 .search-results { margin-top:10px; }
+.theme-colors { display:grid; grid-template-columns:repeat(auto-fill,minmax(115px,1fr)); gap:6px; margin-top:6px; }
+.theme-preview { display:grid; grid-template-columns:1fr 1fr; gap:10px; color:var(--text); background:var(--background); padding:8px; border-radius:var(--radius); }
+.theme-preview img { width:100%; height:124px; object-fit:cover; border-radius:var(--radius); }
+.theme-preview .panel { padding:10px; }.theme-preview .button { margin-top:6px; }
+.below-widgets { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:14px; margin-top:14px; }
+.layout-editor { min-width:0; }
+.widget-frame { min-width:0; }
+.widget-frame > .panel { height:100%; overflow:auto; }
+.widget-frame.widget-editing > .panel { height:calc(100% - 26px); border-radius:0 0 var(--radius) var(--radius); }
+.widget-drag { height:26px; display:flex; align-items:center; gap:7px; padding-inline:8px; background:var(--secondary); color:var(--primary); border-radius:var(--radius-sm) var(--radius-sm) 0 0; font-size:11px; cursor:move; }
+.react-grid-item.react-grid-placeholder { background:var(--primary) !important; }
+.react-grid-item > .react-resizable-handle::after { border-color:var(--border-focus) !important; }
+.mini-calendar { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; text-align:center; }
+.mini-calendar > div { display:grid; gap:2px; border-radius:var(--radius-xs); padding:3px; }
+blockquote { margin:0 0 6px; font-weight:650; }
+.quran-text { font-family:var(--font-arabic),sans-serif; font-size:22px; line-height:1.75; }
+.rich-text { border:1px solid var(--border); border-radius:var(--radius-sm); overflow:hidden; }
+.editor-toolbar,.editor-link { background:var(--background); display:flex; flex-wrap:wrap; gap:2px; padding:4px; border-bottom:1px solid var(--border); }
+.editor-link input { flex:1; }
+.tiptap { min-height:130px; max-height:290px; overflow:auto; padding:9px; font-size:13px; }
+.tiptap a { color:var(--primary); text-decoration:underline; }
+.tiptap ul,.tiptap ol { padding-inline-start:22px; }.tiptap ul { list-style:disc; }.tiptap ol { list-style:decimal; }
+.tiptap pre { color:var(--primary); background:var(--surface-hover); padding:6px; border-radius:var(--radius-xs); }
+.notes-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:12px; }.notes-list { grid-template-columns:1fr; }
+.note-card { text-align:start; border-block-start:3px solid var(--note-color); }
+.note-card:hover { background:var(--surface-hover); }.note-heading{display:flex;align-items:center;gap:9px;justify-content:space-between;}.note-heading svg{color:var(--primary);}
+.note-card p { margin:6px 0; min-height:40px; color:var(--text-secondary); overflow-wrap:anywhere; }
+.pair-panel { display:grid; justify-items:center; text-align:center; gap:7px; }
+.pair-panel input { width:100%; }
+.pair-panel img { border-radius:var(--radius-sm); }
+.device-row input { width:0; }
+.secure-phone { display:grid; gap:6px; border-block-start:1px solid var(--border); margin-top:12px; padding-top:10px; }.secure-phone .button { justify-self:start; }
+.certificate-fingerprint { overflow-wrap:anywhere; }
 .university-page { display:grid; gap:14px; }
 .university-page .page-head { margin-bottom:4px; }
 .import-intro { display:flex; gap:12px; align-items:center; justify-content:space-between; background:var(--secondary); padding:15px; color:var(--primary); border-radius:var(--radius); border:1px solid var(--border); }
@@ -316,4 +349,3 @@ textarea { resize:vertical; }
 @media(max-width:670px) { .dashboard-grid,.two-col,.settings-grid,.kanban { grid-template-columns:1fr; } .dashboard-metrics { grid-template-columns:1fr 1fr; } .topbar-title > span,.topbar-title > svg,.theme-select,.profile { display:none; } .hero { padding:18px; }.main-art { width:78px;height:78px; }.main-art svg{width:47px;}.clock-art,.star-art{display:none;} }
 @media(prefers-reduced-motion:no-preference) { .button,.overview-metric,.nav-group a { transition:background-color .15s,color .15s; } }
 @media print { aside.sidebar,.topbar,.page-head .actions,.toolbar,.toast { display:none; }.shell { display:block; }.workspace-content { padding:0; }.schedule-block { print-color-adjust:exact; } }
-

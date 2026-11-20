@@ -1,10 +1,10 @@
-import { app, BrowserWindow, dialog, globalShortcut, ipcMain, Menu, nativeImage, session, Tray, type IpcMainInvokeEvent } from 'electron';
+import { app, BrowserWindow, dialog, globalShortcut, ipcMain, Menu, nativeImage, net, protocol, session, Tray, type IpcMainInvokeEvent } from 'electron';
 import { extname, join } from 'node:path';
-import { readFile, stat } from 'node:fs/promises';
+import { readFile, stat, writeFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 import { z } from 'zod';
 import { atomicWrite, backupId, migrate, readText, Storage } from './storage';
-import { active, date, patchSchema, settingsSchema, timerActionSchema } from '../shared/schema';
+import { active, date, patchSchema, settingsSchema, themeSchema, timerActionSchema, stamp } from '../shared/schema';
 import { computePrayers, nextPrayer } from '../shared/prayer';
 import { clock } from '../shared/time';
 import { moveTimer, remaining, timerLabel } from '../shared/timer';
@@ -15,7 +15,13 @@ import { parseIcs, exportIcs } from './import-ics';
 import { pdfText } from './import-pdf';
 import { CalendarFeeds } from './import-service';
 import { startHmBar } from './hm-bar';
+import { Companion } from './companion';
+import { phoneDeviceUpdate,syncStartOptions } from '../shared/phone';
+import { approximateLocation,prayerComparison } from './prayer-online';
+import { editPrayer,prayerEditSchema } from '../shared/prayer-record';
+import { configureUpdater } from './updater';
 
+protocol.registerSchemesAsPrivileged([{ scheme:'sabri-media',privileges:{ standard:true,secure:true,stream:true,supportFetchAPI:true } }]);
 app.setName('Sabri');
 app.setAppUserModelId('com.sabri.app');
 if (process.env.SABRI_TEST_DATA) app.setPath('userData', process.env.SABRI_TEST_DATA);
@@ -24,6 +30,7 @@ if (!singleton) app.quit();
 
 let main: BrowserWindow | undefined;
 let floating: BrowserWindow | undefined;
+let capture: BrowserWindow | undefined;
 let quitting = false;
 let tray: Tray | undefined;
 const words = {
@@ -36,16 +43,17 @@ const renderer = (hash = '') => {
   const development = process.env.ELECTRON_RENDERER_URL;
   return development ? new URL(hash, development).href : pathToFileURL(join(__dirname, '../renderer/index.html')).href + hash;
 };
-function windowFor(quick = false) {
+function windowFor(mode?: 'mini'|'capture') {
+  const quick=!!mode;
   const win = new BrowserWindow({
-    width: quick ? 355 : 1390, height: quick ? 365 : 960, minWidth: quick ? 300 : 720, minHeight: quick ? 250 : 550,
+    width: mode==='capture' ? 475 : quick ? 355 : 1390, height: mode==='capture' ? 480 : quick ? 365 : 960, minWidth: quick ? 300 : 720, minHeight: quick ? 250 : 550,
     show: false, autoHideMenuBar: true, alwaysOnTop: quick, backgroundColor: '#f7f7fb', title: 'Sabri', icon: join(files(), 'icon.png'),
     webPreferences: { preload: join(__dirname, '../preload/index.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true }
   });
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   win.webContents.on('will-navigate', (event) => event.preventDefault());
   win.once('ready-to-show', () => win.show());
-  void win.loadURL(renderer(quick ? '#/mini' : focusIntent(process.argv) ? '#/focus' : ''));
+  void win.loadURL(renderer(mode ? '#/'+mode : focusIntent(process.argv) ? '#/focus' : ''));
   return win;
 }
 function show() {
@@ -54,7 +62,7 @@ function show() {
   main.focus();
 }
 function assertIpc(event: IpcMainInvokeEvent) {
-  const trusted = [main, floating].some((window) => window && !window.isDestroyed() && window.webContents.id === event.sender.id);
+  const trusted = [main, floating, capture].some((window) => window && !window.isDestroyed() && window.webContents.id === event.sender.id);
   if (!trusted || event.senderFrame !== event.sender.mainFrame) throw new Error('Invalid IPC sender.');
 }
 function register<T>(channel: string, schema: z.ZodType<T>, action: (value: T, event: IpcMainInvokeEvent) => unknown) {
@@ -70,6 +78,8 @@ if (singleton) void app.whenReady().then(async () => {
   const storage = new Storage(join(app.getPath('userData'), 'sabri-data'));
   await storage.load();
   const closeHmBar = startHmBar(storage,app.getPath('userData'));
+  const companion = new Companion(storage,join(__dirname,'../companion'));
+  await companion.load().catch((error: unknown) => console.error('Could not read paired devices',error));
   let trayLanguage: string | undefined;
   let trayStatus: string | undefined;
   let trayTooltip = '';
@@ -101,6 +111,53 @@ if (singleton) void app.whenReady().then(async () => {
     tray.on('click', show);
   }
   const noArgs = z.undefined();
+  const updater=configureUpdater();
+  register('app:updates:check',noArgs,updater.check);
+  register('app:updates:download',noArgs,updater.download);
+  register('app:updates:install',noArgs,updater.install);
+  protocol.handle('sabri-media',(request) => {
+    const url = new URL(request.url);
+    const filename = /^\/([a-f0-9-]{36}\.(?:mp3|wav|ogg|m4a|flac))$/i.exec(url.pathname)?.[1];
+    if (url.hostname!=='sounds' || !filename || request.method!=='GET') return new Response(null,{ status:404 });
+    return net.fetch(pathToFileURL(storage.soundPath(filename)).href,{ headers:request.headers });
+  });
+  register('theme:import',noArgs,async (_value,event) => {
+    const file=await dialog.showOpenDialog(BrowserWindow.fromWebContents(event.sender)!,{ properties:['openFile'],filters:[{ name:'Sabri theme',extensions:['json'] }] });
+    if (file.canceled || !file.filePaths[0]) return null;
+    return themeSchema.parse(JSON.parse(await readText(file.filePaths[0],65536)));
+  });
+  register('theme:export',themeSchema,async (theme,event) => {
+    const file=await dialog.showSaveDialog(BrowserWindow.fromWebContents(event.sender)!,{ defaultPath:'sabri-theme.json',filters:[{ name:'Sabri theme',extensions:['json'] }] });
+    if (file.canceled || !file.filePath) return false;
+    await atomicWrite(file.filePath,JSON.stringify(theme,null,2));
+    return true;
+  });
+  register('sound:choose',noArgs,async (_value,event) => {
+    const result=await dialog.showOpenDialog(BrowserWindow.fromWebContents(event.sender)!,{ properties:['openFile'],filters:[{ name:'Audio',extensions:['mp3','wav','ogg','m4a','flac'] }] });
+    return result.canceled || !result.filePaths[0] ? null : storage.addSound(result.filePaths[0]);
+  });
+  register('sync:info',noArgs,() => companion.info());
+  register('sync:start',syncStartOptions,({ port,pin,secure }) => companion.start(port,pin,undefined,secure));
+  register('sync:certificate',noArgs,async (_value,event)=>{
+    const file=await dialog.showSaveDialog(BrowserWindow.fromWebContents(event.sender)!,{ defaultPath:'Sabri-WiFi.cer',filters:[{ name:'Sabri Wi-Fi certificate',extensions:['cer'] }] });
+    if (file.canceled || !file.filePath) return null;
+    const root=await companion.certificates.certificate();
+    await writeFile(file.filePath,root.bytes);
+    return { fingerprint:root.fingerprint };
+  });
+  register('sync:test-alert',noArgs,async ()=>{
+    if (!companion.info().running || !companion.info().devices.length) return false;
+    await storage.update((state)=>{
+      const ar=state.settings.language==='ar';
+      const notice={ ...stamp(),title:ar?'إشعار تجريبي من صبري':'Sabri test alert',body:ar?'هاتفك متصل بصبري.':'Your phone is connected to Sabri.',kind:'test',reference:crypto.randomUUID() };
+      return { ...state,notices:[...state.notices,notice].slice(-250) };
+    });
+    return true;
+  });
+  register('sync:stop',noArgs,() => companion.stop());
+  register('sync:pair',noArgs,() => companion.pair());
+  register('sync:device',phoneDeviceUpdate,({ id,name,canEdit }) => companion.update(id,name,canEdit));
+  register('sync:revoke',z.uuid(),(id) => companion.revoke(id));
   const feeds = new CalendarFeeds(storage);
   const checkFeeds = setInterval(() => { void feeds.poll(); },60000);
   register('import:preview', importRequest, async (input,event) => {
@@ -125,6 +182,12 @@ if (singleton) void app.whenReady().then(async () => {
   register('ics:pending',noArgs,() => feeds.listPending());
   register('ics:sync',refreshRequest,({ id }) => feeds.takePending(id) ?? feeds.refresh(id));
   register('import:commit',commitImportRequest,(input) => feeds.commit(input));
+  register('schedule:png',z.instanceof(Uint8Array).refine((data)=>data.length>=8 && data.length<=15_000_000 && data[0]===137 && data[1]===80 && data[2]===78 && data[3]===71),async (data,event) => {
+    const selection=await dialog.showSaveDialog(BrowserWindow.fromWebContents(event.sender)!,{ defaultPath:'sabri-week.png',filters:[{ name:'PNG image',extensions:['png'] }] });
+    if (selection.canceled || !selection.filePath) return false;
+    await writeFile(selection.filePath,data);
+    return true;
+  });
   register('ics:export',z.enum(['schedule','calendar','csv']),async (scope,event) => {
     const format = scope === 'csv' ? 'csv' : 'ics';
     const selection = await dialog.showSaveDialog(BrowserWindow.fromWebContents(event.sender)!,{ defaultPath:'sabri-'+scope+'.'+format,filters:[{ name:format.toUpperCase(),extensions:[format] }] });
@@ -156,9 +219,12 @@ if (singleton) void app.whenReady().then(async () => {
   });
   register('storage:backup:list', noArgs, () => storage.listBackups());
   register('storage:backup:restore', backupId, (id) => storage.restore(id));
+  register('prayer:check',prayerEditSchema,(input) => storage.update((state)=>editPrayer(state,input)));
+  register('prayer:verify',date,(key) => prayerComparison(key,storage.state.settings));
+  register('system:location',noArgs,() => approximateLocation());
   register('prayer:compute', z.object({ key: date, settings: settingsSchema }), ({ key, settings }) => computePrayers(key, settings));
   register('window:mini-timer', noArgs, () => {
-    if (!floating || floating.isDestroyed()) floating = windowFor(true);
+    if (!floating || floating.isDestroyed()) floating = windowFor('mini');
     else floating.show();
   });
   register('window:print', noArgs, (_input, event) => event.sender.print({ printBackground: true }));
@@ -173,6 +239,10 @@ if (singleton) void app.whenReady().then(async () => {
   if (main) keepOpen(main);
   refreshTray();
   const stopScheduler = runScheduler(storage, show, refreshTray);
+  globalShortcut.register('CommandOrControl+Alt+N',() => {
+    if (!capture || capture.isDestroyed()) capture=windowFor('capture');
+    else { capture.show();capture.focus(); }
+  });
   app.on('activate', show);
   const launchIntent = (args: string[]) => {
     if (focusIntent(args)) main?.webContents.send('app:shortcut','focus');
@@ -189,11 +259,9 @@ if (singleton) void app.whenReady().then(async () => {
     clearInterval(checkFeeds);
     globalShortcut.unregisterAll();
     tray?.destroy();
-    void Promise.allSettled([storage.drain(),closeHmBar()]).finally(() => app.quit());
+    void Promise.allSettled([storage.drain(),closeHmBar(),companion.stop()]).finally(() => app.quit());
   });
 }).catch((error: unknown) => {
   dialog.showErrorBox('Sabri', error instanceof Error ? error.message : String(error));
   app.exit(1);
 });
-
-
