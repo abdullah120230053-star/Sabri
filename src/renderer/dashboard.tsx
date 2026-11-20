@@ -1,4 +1,4 @@
-import { ArrowDownToLine, ArrowUpRight, BookOpen, CalendarDays, ChevronRight, CircleCheck, Clock3, GraduationCap, LayoutGrid, Moon, Sparkles, Timer } from 'lucide-react';
+import { ArrowDownToLine, ArrowUpRight, CalendarDays, CircleCheck, LayoutGrid, Moon, Sparkles, Timer } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { active } from '../shared/schema';
@@ -9,7 +9,10 @@ import { PrayerChecklist } from './prayers';
 import { TodaySchedule } from './schedule';
 import { TodayTasks } from './tasks';
 import { useSabri } from './store';
-import { Button, Panel, useNow } from './ui';
+import { Button, useNow } from './ui';
+import { UpcomingEvents } from './calendar';
+import { selectedTheme } from './themes';
+import { ThemeArt } from './theme-art';
 
 export function Dashboard() {
   const { t } = useTranslation(),navigate = useNavigate();
@@ -30,16 +33,13 @@ export function Dashboard() {
       <div className="hero-copy"><span className="hero-kicker"><Sparkles size={15}/>{t('University workspace')}</span><h2>{t('Make time for what matters.')}</h2><p>{t('Bring your class schedule, focus sessions, and daily prayers together in one place.')}</p>
         <Button variant="primary" icon={ArrowDownToLine} onClick={() => navigate('/import')}>{t('Import timetable')}</Button>
       </div>
-      <div className="hero-art" aria-hidden="true"><div className="orbit orbit-one"/><div className="orbit orbit-two"/><div className="orbit orbit-three"/><span className="art-spark art-spark-a">✧</span><span className="art-spark art-spark-b">✦</span><span className="art-spark art-spark-c">✧</span><div className="art-tile main-art"><BookOpen size={73} strokeWidth={1.15}/></div><div className="art-tile clock-art"><Clock3 size={26} strokeWidth={1.5}/></div><div className="art-tile star-art"><GraduationCap size={32} strokeWidth={1.4}/></div></div>
+      <ThemeArt theme={selectedTheme(data).art} motion={settings.themeMotion}/>
     </section>
     <div className="dashboard-metrics">
       {([{ label:'Classes today',value:classes,icon:CalendarDays,tone:'lilac',path:'/schedule' },{ label:'Open tasks',value:tasks,icon:CircleCheck,tone:'orange',path:'/tasks' },{ label:'Focus today',value:focused+' '+t('min'),icon:Timer,tone:'blue',path:'/focus' },{ label:'Next prayer',value:upcoming ? t(upcoming.name.charAt(0).toUpperCase()+upcoming.name.slice(1)):'–',icon:Moon,tone:'mint',path:'/prayers' }]).map((item) => <button key={item.label} className="overview-metric" onClick={() => navigate(item.path)}><span className={'tile tile-'+item.tone}><item.icon size={19}/></span><span className="metric-copy"><small>{t(item.label)}</small><strong>{item.value}</strong></span><ArrowUpRight className="metric-arrow" size={15}/></button>)}
     </div>
-    <div className="dashboard-grid"><div className="stack"><TodaySchedule/><FocusCard compact/></div><div className="stack"><PrayerChecklist compact/><TodayTasks/></div></div>
+    <div className="dashboard-grid"><div className="stack"><TodaySchedule/><FocusCard compact/><UpcomingEvents/></div><div className="stack"><PrayerChecklist compact/><TodayTasks/></div></div>
   </div>;
 }
-export function ImportPlaceholder() {
-  const { t } = useTranslation(),navigate = useNavigate();
-  return <Panel title={t('University data')} icon={GraduationCap}><p className="muted">{t('Add a class directly to your timetable.')}</p><Button variant="primary" onClick={() => navigate('/schedule?add=1')}>{t('Add class')} <ChevronRight size={16}/></Button></Panel>;
-}
+
 

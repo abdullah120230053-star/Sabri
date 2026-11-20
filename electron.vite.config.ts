@@ -17,6 +17,7 @@ export default defineConfig({
         transformIndexHtml: (html) => html.replace("script-src 'self'", "script-src 'self' 'unsafe-inline'"),
       },
     ],
-    build: { rollupOptions: { input: { index: fromRoot('./src/renderer/index.html') } } },
+    build: { assetsInlineLimit: 0, rollupOptions: { input: { index: fromRoot('./src/renderer/index.html') } } },
   },
 });
+

@@ -70,6 +70,8 @@ export const settingsSchema = z.object({
   minimizeToTray: z.boolean().default(true),
   startAtLogin: z.boolean().default(false),
   sidebarCollapsed: z.boolean().default(false),
+  hmBar: z.boolean().default(false),
+  themeMotion: z.boolean().default(true),
   musicPauseAtPrayer: z.boolean().default(true),
   musicLinkFocus: z.boolean().default(false),
   layout: z.string().max(80).default('overview'),
@@ -145,7 +147,7 @@ export type PrayerStatus = typeof prayerStatuses[number];
 export type Base = z.infer<z.ZodObject<typeof base>>;
 
 export const emptyState = (): State => stateSchema.parse({});
-export const stamp = (id = crypto.randomUUID(), now = new Date().toISOString()): Base => ({ id, createdAt: now, updatedAt: now });
+export const stamp = (id: string = crypto.randomUUID(), now = new Date().toISOString()): Base => ({ id, createdAt: now, updatedAt: now });
 export const active = <T extends Base>(records: T[]) => records.filter((record) => !record.deletedAt);
 
 export function applyPatch(state: State, patch: Patch, at?: string): State {

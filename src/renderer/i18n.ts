@@ -5,7 +5,7 @@ import ar from './locales/ar.json';
 
 void i18n.use(initReactI18next).init({
   resources: { en: { translation: en }, ar: { translation: ar } },
-  lng: 'en', fallbackLng: 'en', keySeparator: false, nsSeparator: false, interpolation: { escapeValue: false },
+  showSupportNotice: false, lng: 'en', fallbackLng: 'en', keySeparator: false, nsSeparator: false, interpolation: { escapeValue: false },
 });
 export default i18n;
 

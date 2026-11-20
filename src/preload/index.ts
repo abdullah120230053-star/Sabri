@@ -2,6 +2,12 @@ import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
 import type { SabriApi } from '../shared/api';
 
 const api: SabriApi = {
+  timetable: (input) => ipcRenderer.invoke('import:preview', input),
+  previewFeed: (url) => ipcRenderer.invoke('ics:preview', { url }),
+  pendingFeeds: () => ipcRenderer.invoke('ics:pending'),
+  refreshFeed: (id) => ipcRenderer.invoke('ics:sync', { id }),
+  commitImport: (input) => ipcRenderer.invoke('import:commit', input),
+  exportCalendar: (scope) => ipcRenderer.invoke('ics:export', scope),
   load: () => ipcRenderer.invoke('storage:load'),
   apply: (patch) => ipcRenderer.invoke('storage:save', patch),
   timer: (action) => ipcRenderer.invoke('timer:action', action),

@@ -1,13 +1,20 @@
 import { app, BrowserWindow, dialog, globalShortcut, ipcMain, Menu, nativeImage, session, Tray, type IpcMainInvokeEvent } from 'electron';
-import { join } from 'node:path';
+import { extname, join } from 'node:path';
+import { readFile, stat } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 import { z } from 'zod';
 import { atomicWrite, backupId, migrate, readText, Storage } from './storage';
-import { date, patchSchema, settingsSchema, timerActionSchema } from '../shared/schema';
+import { active, date, patchSchema, settingsSchema, timerActionSchema } from '../shared/schema';
 import { computePrayers, nextPrayer } from '../shared/prayer';
 import { clock } from '../shared/time';
 import { moveTimer, remaining, timerLabel } from '../shared/timer';
 import { runScheduler } from './notifications';
+import { importRequest, feedPreviewRequest, refreshRequest, commitImportRequest, formatSchema } from '../shared/imports';
+import { parseTable } from './import-table';
+import { parseIcs, exportIcs } from './import-ics';
+import { pdfText } from './import-pdf';
+import { CalendarFeeds } from './import-service';
+import { startHmBar } from './hm-bar';
 
 app.setName('Sabri');
 app.setAppUserModelId('com.sabri.app');
@@ -24,6 +31,7 @@ const words = {
   ar: { show: 'افتح صبري', start: 'ابدأ التركيز', pause: 'أوقف المؤقت مؤقتًا', exit: 'خروج', backup: 'استيراد النسخة الاحتياطية؟', detail: 'سيتم استبدال البيانات الحالية مع حفظ نسخة احتياطية منها.', replace: 'استبدال البيانات', cancel: 'إلغاء' },
 };
 const files = () => app.isPackaged ? join(process.resourcesPath, 'resources') : join(app.getAppPath(), 'resources');
+const focusIntent = (args: string[]) => args.some((arg) => /^sabri:\/\/focus\/?$/i.test(arg));
 const renderer = (hash = '') => {
   const development = process.env.ELECTRON_RENDERER_URL;
   return development ? new URL(hash, development).href : pathToFileURL(join(__dirname, '../renderer/index.html')).href + hash;
@@ -37,7 +45,7 @@ function windowFor(quick = false) {
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   win.webContents.on('will-navigate', (event) => event.preventDefault());
   win.once('ready-to-show', () => win.show());
-  void win.loadURL(renderer(quick ? '#/mini' : ''));
+  void win.loadURL(renderer(quick ? '#/mini' : focusIntent(process.argv) ? '#/focus' : ''));
   return win;
 }
 function show() {
@@ -61,6 +69,7 @@ if (singleton) void app.whenReady().then(async () => {
   session.defaultSession.setPermissionCheckHandler(() => false);
   const storage = new Storage(join(app.getPath('userData'), 'sabri-data'));
   await storage.load();
+  const closeHmBar = startHmBar(storage,app.getPath('userData'));
   let trayLanguage: string | undefined;
   let trayStatus: string | undefined;
   let trayTooltip = '';
@@ -92,6 +101,39 @@ if (singleton) void app.whenReady().then(async () => {
     tray.on('click', show);
   }
   const noArgs = z.undefined();
+  const feeds = new CalendarFeeds(storage);
+  const checkFeeds = setInterval(() => { void feeds.poll(); },60000);
+  register('import:preview', importRequest, async (input,event) => {
+    let raw = input.text;
+    let format = input.format;
+    if (raw === undefined) {
+      const selected = await dialog.showOpenDialog(BrowserWindow.fromWebContents(event.sender)!, {
+        properties:['openFile'],filters:[{ name:'Timetable files',extensions:['pdf','ics','csv','tsv','txt','html','htm'] }]
+      });
+      const file = selected.filePaths[0];
+      if (!file || selected.canceled) return null;
+      const extension = extname(file).toLowerCase().slice(1);
+      format = formatSchema.parse(extension === 'txt' || extension === 'tsv' ? 'text' : extension === 'htm' ? 'html' : extension);
+      if (format === 'pdf') {
+        if ((await stat(file)).size > 20_000_000) throw new Error('PDF is too large.');
+        raw = await pdfText(await readFile(file));
+      } else raw = await readText(file,8_000_000);
+    }
+    return format === 'ics' ? parseIcs(raw,storage.state.settings.location.timezone) : parseTable(raw,format,input.mapping);
+  });
+  register('ics:preview',feedPreviewRequest,({ url }) => feeds.preview(url));
+  register('ics:pending',noArgs,() => feeds.listPending());
+  register('ics:sync',refreshRequest,({ id }) => feeds.takePending(id) ?? feeds.refresh(id));
+  register('import:commit',commitImportRequest,(input) => feeds.commit(input));
+  register('ics:export',z.enum(['schedule','calendar','csv']),async (scope,event) => {
+    const format = scope === 'csv' ? 'csv' : 'ics';
+    const selection = await dialog.showSaveDialog(BrowserWindow.fromWebContents(event.sender)!,{ defaultPath:'sabri-'+scope+'.'+format,filters:[{ name:format.toUpperCase(),extensions:[format] }] });
+    if (!selection.filePath || selection.canceled) return false;
+    const csvCell = (value: string|number) => '"' + String(value).replace(/^[=+@-]/,"'$&").replaceAll('"','""') + '"';
+    const csv = () => 'Title,Day,Start,End,Room,Code,Instructor\r\n' + active(storage.state.schedule).map((item) => [item.title,item.dayOfWeek,item.start,item.end,item.location,item.courseCode,item.instructor].map(csvCell).join(',')).join('\r\n');
+    await atomicWrite(selection.filePath,scope === 'csv' ? '\uFEFF'+csv() : exportIcs(storage.state,scope));
+    return true;
+  });
   register('storage:load', noArgs, () => ({ state: storage.state, recoveredFrom: storage.recoveredFrom }));
   register('storage:save', patchSchema, (patch) => storage.patch(patch));
   register('timer:action', timerActionSchema, (action) => storage.update((state) => moveTimer(state, action)));
@@ -132,16 +174,22 @@ if (singleton) void app.whenReady().then(async () => {
   refreshTray();
   const stopScheduler = runScheduler(storage, show, refreshTray);
   app.on('activate', show);
-  app.on('second-instance', show);
+  const launchIntent = (args: string[]) => {
+    if (focusIntent(args)) main?.webContents.send('app:shortcut','focus');
+  };
+  app.on('second-instance',(_event,args) => { show();launchIntent(args); });
+
+  app.on('open-url',(event,url) => { event.preventDefault();show();launchIntent([url]); });
   app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
   app.on('before-quit', (event) => {
     if (quitting) return;
     event.preventDefault();
     quitting = true;
     stopScheduler();
+    clearInterval(checkFeeds);
     globalShortcut.unregisterAll();
     tray?.destroy();
-    void storage.drain().finally(() => app.quit());
+    void Promise.allSettled([storage.drain(),closeHmBar()]).finally(() => app.quit());
   });
 }).catch((error: unknown) => {
   dialog.showErrorBox('Sabri', error instanceof Error ? error.message : String(error));

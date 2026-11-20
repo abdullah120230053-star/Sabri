@@ -15,7 +15,7 @@ try {
   await page.getByRole('heading',{ name:'Make time for what matters.' }).waitFor();
   await page.getByRole('link',{ name:'Tasks',exact:true }).click();
   await page.getByRole('textbox',{ name:'Add a task' }).fill('Review circuits !high');
-  await page.getByRole('textbox',{ name:'Add a task' }).press('Enter');
+  await page.getByRole('button',{ name:'Add',exact:true }).click();
   await page.getByRole('button',{ name:'Complete task Review circuits' }).click();
   await page.getByRole('button',{ name:'Reopen task Review circuits' }).waitFor();
   await page.getByRole('link',{ name:'Schedule',exact:true }).click();

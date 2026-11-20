@@ -108,6 +108,16 @@ export class Storage {
       await stat(join(this.backups, dir.name, 'state.json')).then(() => dir.name, () => '')));
     return available.filter(Boolean).sort().reverse();
   }
+  async readSecret(id: string) {
+    const path = join(this.directory, 'calendar-secrets', z.uuid().parse(id) + '.enc');
+    try { return await readText(path, 20000); }
+    catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined; throw error; }
+  }
+  async writeSecret(id: string, value: string) {
+    const directory = join(this.directory, 'calendar-secrets');
+    await mkdir(directory, { recursive: true });
+    await atomicWrite(join(directory, z.uuid().parse(id) + '.enc'), value);
+  }
   restore(id: string) {
     return this.update(async () => migrate(JSON.parse(await readText(join(this.backups, backupId.parse(id), 'state.json')))), true);
   }

@@ -1,9 +1,14 @@
 import { useEffect, useState } from 'react';
 import { HashRouter, NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Bell, BookOpen, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, ClipboardList, GraduationCap, LayoutGrid, Moon, PanelLeft, Search, Settings, Timer, WifiOff } from 'lucide-react';
+import { BarChart3, Bell, BookOpen, CalendarDays, Repeat2, ChevronDown, ChevronLeft, ChevronRight, ClipboardList, GraduationCap, LayoutGrid, Moon, PanelLeft, Search, Settings, Timer, WifiOff } from 'lucide-react';
 import { active, type State } from '../shared/schema';
-import { Dashboard, ImportPlaceholder } from './dashboard';
+import { Dashboard } from './dashboard';
+import { UniversityPage } from './university';
+import { CalendarPage } from './calendar';
+import { CoursesPage } from './courses';
+import { HabitsPage } from './habits';
+import { StatsPage } from './stats';
 import { FocusCard, FocusPage, useFocusSound } from './focus';
 import { PrayersPage } from './prayers';
 import { SchedulePage } from './schedule';
@@ -15,9 +20,9 @@ import { Empty, IconButton, Modal, Toast } from './ui';
 
 const links = [
   { label:'Workspace', pages:[
-    { to:'/',text:'Overview',icon:LayoutGrid },{ to:'/schedule',text:'Schedule',icon:CalendarDays },{ to:'/tasks',text:'Tasks',icon:ClipboardList },{ to:'/focus',text:'Focus timer',icon:Timer },
+    { to:'/',text:'Overview',icon:LayoutGrid },{ to:'/schedule',text:'Schedule',icon:CalendarDays },{ to:'/calendar',text:'Calendar',icon:CalendarDays },{ to:'/courses',text:'Courses',icon:BookOpen },{ to:'/tasks',text:'Tasks',icon:ClipboardList },{ to:'/focus',text:'Focus timer',icon:Timer },
   ] },
-  { label:'Wellbeing', pages:[{ to:'/prayers',text:'Prayer times',icon:Moon }] },
+  { label:'Wellbeing', pages:[{ to:'/prayers',text:'Prayer times',icon:Moon },{ to:'/habits',text:'Habits',icon:Repeat2 },{ to:'/stats',text:'Statistics',icon:BarChart3 }] },
   { label:'Tools', pages:[{ to:'/import',text:'University data',icon:GraduationCap },{ to:'/settings',text:'Settings',icon:Settings }] },
 ] as const;
 const shortcuts = ['/','/schedule','/prayers','/tasks','/focus','/stats','/calendar','/courses','/notes'];
@@ -53,6 +58,7 @@ function Shell() {
   const activePage = links.flatMap((group) => [...group.pages]).find((item) => item.to === where.pathname);
   const theme = selectedTheme(data);
   useFocusSound();
+  useEffect(() => window.sabri.onShortcut((name) => { if (name==='focus') go('/focus'); }),[go]);
   useEffect(() => {
     const key = (event: KeyboardEvent) => {
       if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
@@ -79,7 +85,7 @@ function Shell() {
         </div>
       </header>
       <main id="content" className="workspace-content" key={where.pathname}><Routes>
-        <Route path="/" element={<Dashboard/>}/><Route path="/schedule" element={<SchedulePage/>}/><Route path="/tasks" element={<TasksPage/>}/><Route path="/focus" element={<FocusPage/>}/><Route path="/prayers" element={<PrayersPage/>}/><Route path="/import" element={<ImportPlaceholder/>}/><Route path="/settings" element={<SettingsPage/>}/><Route path="*" element={<Navigate to="/" replace/>}/>
+        <Route path="/" element={<Dashboard/>}/><Route path="/schedule" element={<SchedulePage/>}/><Route path="/tasks" element={<TasksPage/>}/><Route path="/focus" element={<FocusPage/>}/><Route path="/calendar" element={<CalendarPage/>}/><Route path="/courses" element={<CoursesPage/>}/><Route path="/habits" element={<HabitsPage/>}/><Route path="/stats" element={<StatsPage/>}/><Route path="/prayers" element={<PrayersPage/>}/><Route path="/import" element={<UniversityPage/>}/><Route path="/settings" element={<SettingsPage/>}/><Route path="*" element={<Navigate to="/" replace/>}/>
       </Routes></main>
     </div>
     {showOnboarding && <Onboarding close={() => setShowOnboarding(false)}/>}

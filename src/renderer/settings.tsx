@@ -7,6 +7,7 @@ import { cities } from '../shared/prayer';
 import { addDate, dayKey, dayOf } from '../shared/time';
 import { changeSettings, fresh, patch, tell, useSabri } from './store';
 import { themes } from './themes';
+import { artwork } from './theme-art';
 import { Button, daysOfWeek, Field, FormActions, Modal, PageHead, Panel, titleCase } from './ui';
 
 export function CityField({ value,onChange }: { value: Settings['location']; onChange(location: Settings['location']): void }) {
@@ -64,7 +65,7 @@ export function SettingsPage() {
     <PageHead title={t('Settings')} description={t('Set up Sabri around your day.')}/>
     <div className="settings-grid">
       <Panel title={t('Appearance')} icon={Palette}>
-        <div className="theme-grid">{[...themes,...custom.filter((item) => !item.deletedAt).map((item) => ({ id:item.id,name:item.name,symbol:'◈' }))].map((theme) => <button type="button" key={theme.id} className="theme-choice" aria-pressed={settings.theme === theme.id} onClick={() => { void changeSettings({ theme:theme.id }); }}>{theme.symbol} {t(theme.name)}</button>)}</div>
+        <div className="theme-grid visual-themes">{[...themes,...custom.filter((item) => !item.deletedAt).map((item) => ({ id:item.id,name:item.name,symbol:'◈',art:item.parent }))].map((theme) => <button type="button" key={theme.id} className="theme-choice" aria-pressed={settings.theme === theme.id} onClick={() => { void changeSettings({ theme:theme.id }); }}><img src={artwork[theme.art] ?? artwork.light} alt="" loading="lazy"/><span>{theme.symbol} {t(theme.name)}</span></button>)}</div>
         <div className="form-grid"><Field label={t('Language')}><select value={settings.language} onChange={(e) => { void changeSettings({ language:e.target.value === 'ar' ? 'ar':'en' }); }}><option value="en">{t('English')}</option><option value="ar">{t('Arabic')}</option></select></Field>
         <Field label={t('Time format')}><select value={settings.timeFormat} onChange={(event) => { void changeSettings({ timeFormat:event.target.value === '24h' ? '24h':'12h' }); }}><option value="12h">12h</option><option value="24h">24h</option></select></Field></div>
       </Panel>
@@ -119,6 +120,8 @@ export function SettingsPage() {
       </Panel>
       <Panel title={t('About Sabri')} icon={Shield}><p className="muted">{t('Sabri (صبري) is a study planner for Windows, built around classes, focus, and daily prayers.')}</p>
         <div className="check-grid"><label className="check-label"><input type="checkbox" checked={settings.minimizeToTray} onChange={(e) => { void changeSettings({ minimizeToTray:e.target.checked }); }}/>{t('Minimize to tray')}</label><label className="check-label"><input type="checkbox" checked={settings.startAtLogin} onChange={(e) => { void changeSettings({ startAtLogin:e.target.checked }); }}/>{t('Launch at login')}</label></div>
+        <div className="check-grid"><label className="check-label"><input type="checkbox" checked={settings.hmBar} onChange={(e) => { void changeSettings({ hmBar:e.target.checked }); }}/>{t('Show timer and next prayer in HM-Bar')}</label>
+        <label className="check-label"><input type="checkbox" checked={settings.themeMotion} onChange={(e) => { void changeSettings({ themeMotion:e.target.checked }); }}/>{t('Animate theme artwork')}</label></div>
         <div className="actions"><Button icon={Sparkles} onClick={() => setDemo(true)}>{t('Use sample data')}</Button><Button onClick={() => setOnboard(true)}>{t('Run setup')}</Button><Button onClick={() => nav('/import')}>{t('University data')}</Button></div>
       </Panel>
     </div>
