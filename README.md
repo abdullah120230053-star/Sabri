@@ -4,7 +4,7 @@ Sabri is an offline-first desktop study planner for university students. It brin
 
 ## Install and get started
 
-1. Download `Sabri Setup 1.0.0.exe` from [GitHub Releases](https://github.com/abdullah120230053-star/Sabri/releases/latest), run it on Windows, and open **Sabri** from the Start menu. If you have the portable build, open its executable directly.
+1. Download `Sabri.Setup.1.0.0.exe` from [GitHub Releases](https://github.com/abdullah120230053-star/Sabri/releases/latest), run it on Windows, and open **Sabri** from the Start menu. If you have the portable build, open its executable directly.
 2. In **Settings**, choose your language, confirm your city and timezone, and enable desktop notifications for the reminders you want.
 3. Add your subjects in **Courses**, your classes in **Schedule**, and your exams in **Calendar**. To bring in a timetable you already have, start in **University data**.
 4. Open **Today Plan**, choose your priorities, and select **Generate**. Review the draft and anything that did not fit, then select **Accept all**. Drag or resize blocks, lock commitments, or use **Start** on a block to launch a linked focus timer.
